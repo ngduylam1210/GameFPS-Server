@@ -30,48 +30,39 @@
     </div>
 
 <script>
-        // Đường link Server Render
-        const API_URL = "https://gamefps-server.onrender.com";
+    const API_URL = "https://gamefps-server.onrender.com";
 
-        // Vòng lặp lấy dữ liệu mỗi 1 giây
-        setInterval(async () => {
-            try {
-                const res = await fetch(`${API_URL}/api/history`);
-                const data = await res.json();
-                
-                if (data.length > 0) {
-                    // Lấy phần tử cuối cùng của mảng (dữ liệu mới nhất vừa đẩy vào DB)
-                    let latestItem = data[data.length - 1]; 
-                    
-                    // Linh hoạt: Nếu JSON có bọc lớp "data" thì bóc ra, nếu không thì dùng trực tiếp
-                    let latest = latestItem.data ? latestItem.data : latestItem;
+    setInterval(async () => {
+        try {
+            // ✅ Dùng /api/latest thay vì /api/history — nhanh hơn, đúng mục đích
+            const res  = await fetch(`${API_URL}/api/latest`);
+            const d    = await res.json();
 
-                    // Kiểm tra chặt chẽ: chỉ cần có thuộc tính pitch (dù bằng 0) là hợp lệ
-                    if (latest.pitch !== undefined) {
-                        document.getElementById('data-display').innerHTML =
-                            `<strong>Góc Pitch:</strong> ${latest.pitch.toFixed(1)}° <br>
-                             <strong>Góc Roll:</strong> ${latest.roll.toFixed(1)}° <br>
-                             <strong>Góc Yaw:</strong> ${latest.yaw.toFixed(1)}° <br>
-                             <strong>Nút Bấm:</strong> ${latest.buttons || 0}`;
-                    }
-                }
-            } catch (e) {
-                console.log("Lỗi tải dữ liệu", e);
+            // ✅ Bỏ .data — object trả về trực tiếp có pitch/roll/yaw
+            if (d && d.pitch !== undefined) {
+                document.getElementById('data-display').innerHTML =
+                    `<strong>Góc Pitch:</strong> ${d.pitch.toFixed(1)}° <br>
+                     <strong>Góc Roll:</strong>  ${d.roll.toFixed(1)}° <br>
+                     <strong>Góc Yaw:</strong>   ${d.yaw.toFixed(1)}° <br>
+                     <strong>Nút Bấm:</strong>   ${d.buttons || 0}`;
             }
-        }, 1000);
-
-        // Hàm gửi lệnh OTA
-        async function triggerOTA() {
-            const statusText = document.getElementById('ota-status');
-            statusText.innerText = "⏳ Đang phát sóng lệnh OTA...";
-            try {
-                const res = await fetch(`${API_URL}/api/trigger-ota`, { method: 'POST' });
-                const result = await res.json();
-                statusText.innerText = "✅ " + result.message;
-            } catch (e) {
-                statusText.innerText = "❌ Không thể kết nối tới Server!";
-            }
+        } catch (e) {
+            document.getElementById('data-display').innerText = "Lỗi kết nối server";
+            console.error(e);
         }
-    </script>
+    }, 1000);
+
+    async function triggerOTA() {
+        const el = document.getElementById('ota-status');
+        el.innerText = "⏳ Đang phát lệnh OTA...";
+        try {
+            const res    = await fetch(`${API_URL}/api/trigger-ota`, { method: 'POST' });
+            const result = await res.json();
+            el.innerText = "✅ " + result.message;
+        } catch (e) {
+            el.innerText = "❌ Không thể kết nối Server!";
+        }
+    }
+</script>
 </body>
 </html>
