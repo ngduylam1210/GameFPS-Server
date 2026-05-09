@@ -29,8 +29,8 @@
         <p id="ota-status" style="margin-top: 15px; color: #cf6679; font-weight: bold;"></p>
     </div>
 
-    <script>
-        // Đã tự động điền đường link Server Render của el
+<script>
+        // Đường link Server Render
         const API_URL = "https://gamefps-server.onrender.com";
 
         // Vòng lặp lấy dữ liệu mỗi 1 giây
@@ -39,13 +39,21 @@
                 const res = await fetch(`${API_URL}/api/history`);
                 const data = await res.json();
                 
-                if(data.length > 0 && data[0].data) {
-                    const latest = data[0].data;
-                    document.getElementById('data-display').innerHTML =
-                        `<strong>Góc Pitch:</strong> ${latest.pitch ? latest.pitch.toFixed(1) : 0}° <br>
-                         <strong>Góc Roll:</strong> ${latest.roll ? latest.roll.toFixed(1) : 0}° <br>
-                         <strong>Góc Yaw:</strong> ${latest.yaw ? latest.yaw.toFixed(1) : 0}° <br>
-                         <strong>Nút Bấm:</strong> ${latest.buttons || 0}`;
+                if (data.length > 0) {
+                    // Lấy phần tử cuối cùng của mảng (dữ liệu mới nhất vừa đẩy vào DB)
+                    let latestItem = data[data.length - 1]; 
+                    
+                    // Linh hoạt: Nếu JSON có bọc lớp "data" thì bóc ra, nếu không thì dùng trực tiếp
+                    let latest = latestItem.data ? latestItem.data : latestItem;
+
+                    // Kiểm tra chặt chẽ: chỉ cần có thuộc tính pitch (dù bằng 0) là hợp lệ
+                    if (latest.pitch !== undefined) {
+                        document.getElementById('data-display').innerHTML =
+                            `<strong>Góc Pitch:</strong> ${latest.pitch.toFixed(1)}° <br>
+                             <strong>Góc Roll:</strong> ${latest.roll.toFixed(1)}° <br>
+                             <strong>Góc Yaw:</strong> ${latest.yaw.toFixed(1)}° <br>
+                             <strong>Nút Bấm:</strong> ${latest.buttons || 0}`;
+                    }
                 }
             } catch (e) {
                 console.log("Lỗi tải dữ liệu", e);
