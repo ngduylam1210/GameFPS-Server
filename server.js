@@ -112,20 +112,25 @@ mqttClient.on('connect', () => {
 mqttClient.on('error', err => console.error('[MQTT] Lỗi:', err.message));
 mqttClient.on('reconnect', () => console.log('[MQTT] Đang kết nối lại...'));
 
-// Giới hạn lưu DB 2 lần/giây
+// Giới hạn lưu DB 10 lần/giây và CHỐNG TRÙNG LẶP
 let lastSaved = 0;
+let lastDataString = ""; 
 
 mqttClient.on('message', async (topic, message) => {
+  const rawMsg = message.toString();
   let data;
-  try { data = JSON.parse(message.toString()); }
+  try { data = JSON.parse(rawMsg); }
   catch { return; }
 
   const currentTime = Date.now(); // Sử dụng chung 1 biến thời gian cho toàn bộ sự kiện
 
   // Xử lý Controller topic
   if (topic === 'gamefps/controller') {
+    if (rawMsg === lastDataString) return; // Bỏ qua nếu dữ liệu giống y hệt lần trước
     if (currentTime - lastSaved < 100) return; // rate limit: 10Hz
+    
     lastSaved = currentTime;
+    lastDataString = rawMsg;
     
     try {
       await SensorData.create({
@@ -135,7 +140,7 @@ mqttClient.on('message', async (topic, message) => {
         buttons: parseInt(data.buttons)   || 0,
         mode:    parseInt(data.mode)      || 0,
       });
-      console.log(`[DB] P:${(+data.pitch).toFixed(1)} R:${(+data.roll).toFixed(1)} Y:${(+data.yaw).toFixed(1)}`);
+      // console.log(`[DB] P:${(+data.pitch).toFixed(1)} R:${(+data.roll).toFixed(1)} Y:${(+data.yaw).toFixed(1)}`);
     } catch (e) { console.error('[DB Controller]', e.message); }
 
     // Ghi vào Google Sheets mỗi SENSOR_INTERVAL
@@ -147,17 +152,18 @@ mqttClient.on('message', async (topic, message) => {
         parseFloat(data.pitch).toFixed(2),
         parseFloat(data.roll).toFixed(2),
         parseFloat(data.yaw).toFixed(2),
-        '', '', ''   // GyroXYZ 
+        data.gx || 0, // Lấy giá trị gx từ data
+        data.gy || 0, // Lấy giá trị gy từ data
+        data.gz || 0  // Lấy giá trị gz từ data
       ]);
     }
   }
 
-// Xử lý Session topic
+  // Xử lý Session topic
   if (topic === 'gamefps/session') {
     try { 
       await Session.create(data); 
       
-      // BỔ SUNG DÒNG NÀY ĐỂ GHI VÀO GOOGLE SHEETS
       const ts = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
       await appendToSheet('SessionLog', [
         ts, 
