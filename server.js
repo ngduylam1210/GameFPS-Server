@@ -81,7 +81,6 @@ const HealthSchema = new mongoose.Schema({
   voltage:       Number,   // volt pin 18650
   temperature:   Number,   // °C lõi ESP32
   rssi:          Number,   // dBm WiFi
-  resetCount:    Number,
 });
 HealthSchema.index({ timestamp: -1 });
 const HealthData = mongoose.model('HealthData', HealthSchema);
