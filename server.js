@@ -41,7 +41,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ── SParse MQTT_HOST linh hoạt (Render env có thể chứa mqtts://...host...:8883)
+// ── FIX: Parse MQTT_HOST linh hoạt (Render env có thể chứa mqtts://...host...:8883)
 function parseMqttHost(raw) {
   try {
     const url = new URL(raw.includes('://') ? raw : 'mqtts://' + raw);
@@ -124,26 +124,12 @@ mqttClient.on('message', async (topic, message) => {
 
   const currentTime = Date.now(); // Sử dụng chung 1 biến thời gian cho toàn bộ sự kiện
 
-  // Xử lý Controller topic
+  // ==========================================
+  // XỬ LÝ CONTROLLER TOPIC
+  // ==========================================
   if (topic === 'gamefps/controller') {
-    if (rawMsg === lastDataString) return; // Bỏ qua nếu dữ liệu giống y hệt lần trước
-    if (currentTime - lastSaved < 100) return; // rate limit: 10Hz
     
-    lastSaved = currentTime;
-    lastDataString = rawMsg;
-    
-    try {
-      await SensorData.create({
-        pitch:   parseFloat(data.pitch)   || 0,
-        roll:    parseFloat(data.roll)    || 0,
-        yaw:     parseFloat(data.yaw)     || 0,
-        buttons: parseInt(data.buttons)   || 0,
-        mode:    parseInt(data.mode)      || 0,
-      });
-      // console.log(`[DB] P:${(+data.pitch).toFixed(1)} R:${(+data.roll).toFixed(1)} Y:${(+data.yaw).toFixed(1)}`);
-    } catch (e) { console.error('[DB Controller]', e.message); }
-
-    // Ghi vào Google Sheets mỗi SENSOR_INTERVAL
+    // 1. GHI GOOGLE SHEETS LUÔN LUÔN CHẠY MỖI 10 GIÂY (Không bị chặn bởi lastDataString)
     if (currentTime - lastSensorLog >= SENSOR_INTERVAL) {
       lastSensorLog = currentTime;
       const ts = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
@@ -157,9 +143,28 @@ mqttClient.on('message', async (topic, message) => {
         data.gz || 0  // Lấy giá trị gz từ data
       ]);
     }
+
+    // 2. CHỐNG SPAM DATABASE MONGODB (Chỉ lưu khi mạch có cử động)
+    if (rawMsg === lastDataString) return; // Nếu nằm im, thoát ngay không ghi DB
+    if (currentTime - lastSaved < 100) return; // rate limit: 10Hz
+    
+    lastSaved = currentTime;
+    lastDataString = rawMsg;
+    
+    try {
+      await SensorData.create({
+        pitch:   parseFloat(data.pitch)   || 0,
+        roll:    parseFloat(data.roll)    || 0,
+        yaw:     parseFloat(data.yaw)     || 0,
+        buttons: parseInt(data.buttons)   || 0,
+        mode:    parseInt(data.mode)      || 0,
+      });
+    } catch (e) { console.error('[DB Controller]', e.message); }
   }
 
-  // Xử lý Session topic
+  // ==========================================
+  // XỬ LÝ SESSION TOPIC
+  // ==========================================
   if (topic === 'gamefps/session') {
     try { 
       await Session.create(data); 
@@ -175,7 +180,9 @@ mqttClient.on('message', async (topic, message) => {
     } catch (e) { console.error('[DB Session]', e.message); }
   }
 
-  // Xử lý Health topic
+  // ==========================================
+  // XỬ LÝ HEALTH TOPIC
+  // ==========================================
   if (topic === 'gamefps/health') {
     try {
       await HealthData.create({
@@ -188,7 +195,7 @@ mqttClient.on('message', async (topic, message) => {
       });
     } catch (e) { console.error('[DB Health]', e.message); }
       
-    // Ghi vào Google Sheets mỗi HEALTH_INTERVAL
+    // Ghi vào Google Sheets
     if (currentTime - lastHealthLog >= HEALTH_INTERVAL) {
       lastHealthLog = currentTime;
       const ts = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
