@@ -124,7 +124,7 @@ mqttClient.on('message', async (topic, message) => {
 
   // Xử lý Controller topic
   if (topic === 'gamefps/controller') {
-    if (currentTime - lastSaved < 500) return; // rate limit: 2Hz
+    if (currentTime - lastSaved < 100) return; // rate limit: 10Hz
     lastSaved = currentTime;
     
     try {
