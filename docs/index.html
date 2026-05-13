@@ -59,7 +59,6 @@ h1{text-align:center;font-size:20px;font-weight:500;margin-bottom:4px;letter-spa
 <h1>🎮 FPS Controller</h1>
 <p class="subtitle">Real-time 3D + Angles + Health — Pro Dashboard</p>
 
-<!-- THANH TRẠNG THÁI  -->
 <div class="status-bar">
   <div class="status-pill"><div class="dot green pulse" id="sd-server"></div><span id="st-server">Server</span></div>
   <div class="status-pill"><div class="dot red" id="sd-mqtt"></div><span id="st-mqtt">MQTT</span></div>
@@ -68,9 +67,7 @@ h1{text-align:center;font-size:20px;font-weight:500;margin-bottom:4px;letter-spa
   <div class="status-pill"><i></i><span id="st-latency">-- ms</span></div>
 </div>
 
-<!-- ROW 1: 3D + Góc  -->
 <div class="grid grid-2">
-  <!-- 3D model -->
   <div class="card">
     <div class="card-title">3D MODEL</div>
     <canvas id="canvas3d"></canvas>
@@ -79,7 +76,6 @@ h1{text-align:center;font-size:20px;font-weight:500;margin-bottom:4px;letter-spa
     </p>
   </div>
 
-  <!-- Góc + Drift -->
   <div class="card">
     <div class="card-title">Góc cảm biến — Real-time</div>
     <div class="angle-row">
@@ -92,15 +88,12 @@ h1{text-align:center;font-size:20px;font-weight:500;margin-bottom:4px;letter-spa
   </div>
 </div>
 
-<!-- ROW 2: Charts ✅ -->
 <div class="card" style="margin-bottom:14px">
   <div class="card-title">Biểu đồ góc — 60 mẫu gần nhất</div>
   <div class="chart-wrap" style="height:160px"><canvas id="angle-chart"></canvas></div>
 </div>
 
-<!-- ROW 3: Health metrics  -->
 <div class="grid grid-3">
-  <!-- Thời gian sử dụng -->
   <div class="card">
     <div class="card-title">Thời gian hoạt động</div>
     <div class="metric">
@@ -109,7 +102,6 @@ h1{text-align:center;font-size:20px;font-weight:500;margin-bottom:4px;letter-spa
     </div>
   </div>
 
-  <!-- Độ trễ -->
   <div class="card">
     <div class="card-title">Độ trễ</div>
     <div class="metric">
@@ -118,7 +110,6 @@ h1{text-align:center;font-size:20px;font-weight:500;margin-bottom:4px;letter-spa
     </div>
   </div>
 
-  <!-- Tốc độ mạng (PPS) -->
   <div class="card">
     <div class="card-title">Tốc độ gói tin</div>
     <div class="metric">
@@ -131,7 +122,6 @@ h1{text-align:center;font-size:20px;font-weight:500;margin-bottom:4px;letter-spa
   </div>
 </div>
 
-<!-- ROW 4: Nhiệt độ + OTA  -->
 <div class="grid grid-2">
   <div class="card">
     <div class="card-title">Nhiệt độ lõi ESP32</div>
@@ -154,6 +144,18 @@ h1{text-align:center;font-size:20px;font-weight:500;margin-bottom:4px;letter-spa
 </div>
 
 <script>
+// ─────────────────────────────────────────────────────────
+// BIẾN TOÀN CỤC CHUYÊN SÂU
+// ─────────────────────────────────────────────────────────
+const API = "https://gamefps-server.onrender.com";
+let pktCount = 0, lastPktCount = 0, lastPktTime = Date.now();
+
+// Biến canh gác & tính toán thời gian thực
+let lastDataTime = Date.now();
+let lastSeenTs = null;
+let baseUptime = 0; 
+let needUptimeReset = true; 
+
 // ─────────────────────────────────────────────────────────
 // THREE.JS 3D 
 // ─────────────────────────────────────────────────────────
@@ -218,7 +220,6 @@ function updateCube(pitch, roll, yaw) {
 const MAX_SAMPLES = 60;
 let labels = [], dPitch = [], dRoll = [], dYaw = [], dDrift = [], dTemp = [];
 
-// Charts
 const angleChart = new Chart(document.getElementById('angle-chart'), {
   type: 'line',
   data: {
@@ -286,16 +287,10 @@ function formatUptime(sec) {
 }
 
 function tempStatus(t) {
-  if (t < 50) return { text:'Bình thường', color:'#4caf50' };
-  if (t < 70) return { text:'Hơi nóng', color:'#ffb74d' };
+  if (t < 65) return { text:'Bình thường', color:'#4caf50' }; // Tinh chỉnh cho ESP32
+  if (t < 80) return { text:'Chịu tải cao', color:'#ffb74d' };
   return { text:'⚠ Quá nhiệt!', color:'#cf6679' };
 }
-
-// ─────────────────────────────────────────────────────────
-// API
-// ─────────────────────────────────────────────────────────
-const API = "https://gamefps-server.onrender.com";
-let pktCount = 0, lastPktCount = 0, lastPktTime = Date.now();
 
 // ─────────────────────────────────────────────────────────
 // FETCH SENSOR (Góc + 3D)
@@ -309,38 +304,43 @@ async function fetchSensor() {
 
     if (!d || d.pitch === undefined) return;
 
-    // GÓC
-    document.getElementById('v-pitch').textContent = d.pitch.toFixed(1);
-    document.getElementById('v-roll').textContent  = d.roll.toFixed(1);
-    document.getElementById('v-yaw').textContent   = d.yaw.toFixed(1);
+    // CHỈ CẬP NHẬT KHI CÓ GÓI TIN MỚI TỪ DATABASE
+    const isNew = d.timestamp && d.timestamp !== lastSeenTs;
+    if (isNew) {
+      lastSeenTs = d.timestamp;
+      lastDataTime = Date.now(); 
+      pktCount++;
+    }
 
-    // 3D 
-    updateCube(d.pitch, d.roll, d.yaw);
+    // NẾU MẠCH ĐANG ONLINE (Không bị Watchdog chặn)
+    if (Date.now() - lastDataTime <= 3000) {
+      document.getElementById('v-pitch').textContent = d.pitch.toFixed(1);
+      document.getElementById('v-roll').textContent  = d.roll.toFixed(1);
+      document.getElementById('v-yaw').textContent   = d.yaw.toFixed(1);
 
-    // CHARTS
-    const ts = new Date().toLocaleTimeString('vi-VN', {hour12:false}).slice(-8);
-    pushData(labels, ts);
-    pushData(dPitch, d.pitch);
-    pushData(dRoll,  d.roll);
-    pushData(dYaw,   d.yaw);
-    pushData(dDrift, d.yaw);
+      updateCube(d.pitch, d.roll, d.yaw);
 
-    angleChart.update('none');
-    driftChart.data.labels = labels.slice(-10);
-    driftChart.update('none');
+      const ts = new Date().toLocaleTimeString('vi-VN', {hour12:false}).slice(-8);
+      pushData(labels, ts);
+      pushData(dPitch, d.pitch);
+      pushData(dRoll,  d.roll);
+      pushData(dYaw,   d.yaw);
+      pushData(dDrift, d.yaw);
 
-    // STATUS + LATENCY
-    setDot('sd-esp', true);
-    document.getElementById('st-esp').textContent = 'ESP32 Online';
-    setDot('sd-server', true);
-    document.getElementById('st-server').textContent = 'Server Online';
-    
-    document.getElementById('v-latency').textContent = latency + ' ms';
-    document.getElementById('st-latency').textContent = latency + ' ms';
-    document.getElementById('v-latency').style.color = 
-      latency < 50 ? '#4caf50' : latency < 100 ? '#03dac6' : '#ffb74d';
+      angleChart.update('none');
+      driftChart.data.labels = labels.slice(-10);
+      driftChart.update('none');
 
-    pktCount++;
+      setDot('sd-esp', true);
+      document.getElementById('st-esp').textContent = 'ESP32 Online';
+      setDot('sd-server', true);
+      document.getElementById('st-server').textContent = 'Server Online';
+      
+      document.getElementById('v-latency').textContent = latency + ' ms';
+      document.getElementById('st-latency').textContent = latency + ' ms';
+      document.getElementById('v-latency').style.color = 
+        latency < 50 ? '#4caf50' : latency < 100 ? '#03dac6' : '#ffb74d';
+    }
 
   } catch(e) {
     setDot('sd-server', false);
@@ -357,13 +357,22 @@ async function fetchHealth() {
     const h   = await res.json();
     if (!h) return;
 
-    // THỜI GIAN SỬ DỤNG
-    if (h.uptime !== undefined) {
-      document.getElementById('v-uptime').textContent = formatUptime(h.uptime);
+    // THỜI GIAN SỬ DỤNG: Xử lý Reset mượt mà trên Web
+    if (h.uptime !== undefined && Date.now() - lastDataTime <= 3000) {
+      if (needUptimeReset) {
+        baseUptime = h.uptime; // Lấy điểm neo mới
+        needUptimeReset = false;
+      }
+      let sessionUptime = h.uptime - baseUptime;
+      if (sessionUptime < 0) { // Đề phòng trường hợp ESP32 bị sập nguồn reset số
+        baseUptime = h.uptime;
+        sessionUptime = 0;
+      }
+      document.getElementById('v-uptime').textContent = formatUptime(sessionUptime);
     }
 
     // NHIỆT ĐỘ
-    if (h.temperature !== undefined) {
+    if (h.temperature !== undefined && Date.now() - lastDataTime <= 3000) {
       const t = h.temperature;
       const st = tempStatus(t);
       document.getElementById('v-temp').textContent = t.toFixed(1) + '°C';
@@ -376,7 +385,6 @@ async function fetchHealth() {
       tempChart.update('none');
     }
 
-    // MQTT
     const mqttOk = h.mqttConnected === true;
     setDot('sd-mqtt', mqttOk);
     document.getElementById('st-mqtt').textContent = mqttOk ? 'MQTT OK' : 'MQTT Offline';
@@ -385,20 +393,46 @@ async function fetchHealth() {
 }
 
 // ─────────────────────────────────────────────────────────
-// PPS COUNTER (TỐC ĐỘ MẠNG)
+// BỘ ĐẾM CHÓ CANH GÁC (WATCHDOG) + PPS
 // ─────────────────────────────────────────────────────────
 setInterval(() => {
   const now  = Date.now();
+  
+  // Tính Tốc độ gói tin
   const secs = (now - lastPktTime) / 1000;
   const pps  = (pktCount - lastPktCount) / secs;
   lastPktCount = pktCount;
   lastPktTime  = now;
   
-  document.getElementById('v-pps').textContent = pps.toFixed(1);
-  document.getElementById('st-fps').textContent = pps.toFixed(1) + ' pkt/s';
-  document.getElementById('v-pps').style.color = 
-    pps >= 20 ? '#4caf50' : pps >= 10 ? '#ffb74d' : '#cf6679';
-}, 5000);
+  // Xử lý Giao diện khi MẤT TÍN HIỆU
+  if (now - lastDataTime > 3000) {
+    needUptimeReset = true; // Yêu cầu đếm lại từ đầu khi có mạng
+
+    setDot('sd-esp', false);
+    document.getElementById('st-esp').textContent = 'ESP32 Offline (Mất tín hiệu)';
+    
+    document.getElementById('v-pitch').textContent = "--";
+    document.getElementById('v-roll').textContent  = "--";
+    document.getElementById('v-yaw').textContent   = "--";
+    
+    document.getElementById('v-uptime').textContent = "--:--:--";
+    document.getElementById('v-temp').textContent = "--°C";
+    document.getElementById('v-temp-status').textContent = "Đang chờ dữ liệu...";
+    document.getElementById('v-temp-status').style.color = "var(--muted)";
+    
+    document.getElementById('v-latency').textContent = "-- ms";
+    document.getElementById('st-latency').textContent = "-- ms";
+    document.getElementById('v-pps').textContent = "0.0";
+    document.getElementById('st-fps').textContent = "0 pkt/s";
+    document.getElementById('v-pps').style.color = '#cf6679';
+  } else {
+    // Chỉ cập nhật PPS khi mạng bình thường
+    document.getElementById('v-pps').textContent = pps.toFixed(1);
+    document.getElementById('st-fps').textContent = pps.toFixed(1) + ' pkt/s';
+    document.getElementById('v-pps').style.color = 
+      pps >= 20 ? '#4caf50' : pps >= 10 ? '#ffb74d' : '#cf6679';
+  }
+}, 1000);
 
 // ─────────────────────────────────────────────────────────
 // OTA
