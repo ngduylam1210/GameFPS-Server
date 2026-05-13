@@ -152,10 +152,20 @@ mqttClient.on('message', async (topic, message) => {
     }
   }
 
-  // Xử lý Session topic
+// Xử lý Session topic
   if (topic === 'gamefps/session') {
     try { 
       await Session.create(data); 
+      
+      // BỔ SUNG DÒNG NÀY ĐỂ GHI VÀO GOOGLE SHEETS
+      const ts = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+      await appendToSheet('SessionLog', [
+        ts, 
+        data.sessionId || 'N/A', 
+        data.score || 0, 
+        data.duration || 0
+      ]);
+      
     } catch (e) { console.error('[DB Session]', e.message); }
   }
 
