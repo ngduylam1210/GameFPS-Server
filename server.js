@@ -34,14 +34,14 @@ async function appendToSheet(tabName, values) {
 let lastSensorLog = 0;   // ghi mỗi 10 giây
 let lastHealthLog = 0;   // ghi mỗi 30 giây
 const SENSOR_INTERVAL = 10 * 1000;
-const HEALTH_INTERVAL = 30 * 1000;
+const HEALTH_INTERVAL = 600 * 1000;
 //==================================================================
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ── FIX: Parse MQTT_HOST linh hoạt (Render env có thể chứa mqtts://...host...:8883)
+// ── SParse MQTT_HOST linh hoạt (Render env có thể chứa mqtts://...host...:8883)
 function parseMqttHost(raw) {
   try {
     const url = new URL(raw.includes('://') ? raw : 'mqtts://' + raw);
