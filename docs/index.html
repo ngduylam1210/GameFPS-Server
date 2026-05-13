@@ -357,8 +357,8 @@ async function fetchHealth() {
     const h   = await res.json();
     if (!h) return;
 
-    // THỜI GIAN SỬ DỤNG: Xử lý Reset mượt mà trên Web
-    if (h.uptime !== undefined && Date.now() - lastDataTime <= 5000) {
+    // THỜI GIAN SỬ DỤNG
+    if (h.uptime !== undefined && Date.now() - lastDataTime <= 2000) {
       if (needUptimeReset) {
         baseUptime = h.uptime; // Lấy điểm neo mới
         needUptimeReset = false;
@@ -393,7 +393,7 @@ async function fetchHealth() {
 }
 
 // ─────────────────────────────────────────────────────────
-// BỘ ĐẾM CHÓ CANH GÁC (WATCHDOG) + PPS
+// BỘ ĐẾM (WATCHDOG) + PPS
 // ─────────────────────────────────────────────────────────
 setInterval(() => {
   const now  = Date.now();
@@ -405,7 +405,7 @@ setInterval(() => {
   lastPktTime  = now;
   
   // Xử lý Giao diện khi MẤT TÍN HIỆU
-  if (now - lastDataTime > 1000) {
+  if (now - lastDataTime > 3000) {
     needUptimeReset = true; // Yêu cầu đếm lại từ đầu khi có mạng
 
     setDot('sd-esp', false);
@@ -466,7 +466,7 @@ async function triggerOTA() {
 fetchSensor();
 fetchHealth();
 setInterval(fetchSensor, 1000);
-setInterval(fetchHealth, 500);
+setInterval(fetchHealth, 100);
 </script>
 </body>
 </html>
