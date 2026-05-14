@@ -3,1194 +3,383 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GameFPS — Controller Monitor</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<title>LAB DASHBOARD</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js"></script>
 <style>
-/* ── Reset & Root ─────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+/* ── LIGHT THEME & RESET ── */
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
 :root {
-  /* Light Theme - Easy on eyes */
-  --bg:        #f8fafc;
-  --surface:   #ffffff;
-  --panel:     #f1f5f9;
-  --border:    #e2e8f0;
-  --border-hi: #cbd5e1;
-  --text:      #1e293b;
-  --text-light:#475569;
-  --dim:       #64748b;
-  --accent:    #0ea5e9;
-  --accent2:   #7c3aed;
-  --warn:      #f59e0b;
-  --danger:    #dc2626;
-  --ok:        #10b981;
-  --pitch:     #0284c7;
-  --roll:      #0ea5e9;
-  --yaw:       #f97316;
-  --scan:      rgba(14,165,233,.02);
-  --font-mono: 'JetBrains Mono', monospace;
-  --font-hud:  'Orbitron', sans-serif;
-  
-  /* 3D Axes Colors - Bright & Bold */
-  --axis-x: #ef4444;
-  --axis-y: #10b981;
-  --axis-z: #3b82f6;
+  --bg: #f4f6f9;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --pitch-x: #ef4444; /* Đỏ */
+  --roll-y:  #10b981; /* Xanh lá */
+  --yaw-z:   #3b82f6; /* Xanh dương */
+  --accent:  #8b5cf6; /* Tím nhạt */
+  --ok:      #10b981;
+  --warn:    #f59e0b;
+  --danger:  #ef4444;
 }
 
-body {
-  background: linear-gradient(135deg, var(--bg) 0%, #e2e8f0 100%);
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  height: 100vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
+body { background: var(--bg); color: var(--text-main); padding: 16px; min-height: 100vh; display: flex; flex-direction: column; gap: 16px; }
 
-/* ── Subtle scan-line overlay ──────────────────────────────────── */
-body::after {
-  content: '';
-  position: fixed; inset: 0;
-  background: repeating-linear-gradient(
-    0deg, transparent, transparent 4px, var(--scan) 4px, var(--scan) 8px
-  );
-  pointer-events: none;
-  z-index: 999;
-}
+/* ── LAYOUT GRIDS ── */
+.header { display: flex; justify-content: space-between; align-items: center; background: var(--card); padding: 12px 24px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+.main-grid { display: grid; grid-template-columns: 280px 1fr 280px; gap: 16px; flex: 1; }
+.bottom-grid { display: grid; grid-template-columns: 1fr 300px; gap: 16px; }
 
-/* ── Header ─────────────────────────────────────────────── */
-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 20px;
-  border-bottom: 2px solid var(--border-hi);
-  background: var(--surface);
-  flex-shrink: 0;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-}
+/* ── CARDS ── */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; flex-direction: column; }
+.card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); border-bottom: 2px solid var(--bg); padding-bottom: 8px; margin-bottom: 12px; }
 
-.hud-title {
-  font-family: var(--font-hud);
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 3px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-shadow: none;
-}
+/* ── 6. HEADER: Trạng thái & Thời gian ── */
+.brand { font-size: 16px; font-weight: 800; color: var(--accent); letter-spacing: 1px; }
+.status-bar { display: flex; gap: 16px; align-items: center; }
+.badge { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 20px; background: var(--bg); border: 1px solid var(--border); }
+.dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot.ok { background: var(--ok); box-shadow: 0 0 8px rgba(16, 185, 129, 0.4); }
+.dot.err { background: var(--danger); box-shadow: 0 0 8px rgba(239, 68, 68, 0.4); }
+#clock { font-family: monospace; font-size: 16px; font-weight: bold; color: var(--text-main); background: var(--bg); padding: 4px 12px; border-radius: 6px; }
 
-.status-row {
-  display: flex;
-  gap: 20px;
-  align-items: center;
-}
+/* ── 2. LEFT: Orientation ── */
+.angle-box { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--bg); border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--border); }
+.angle-box .lbl { font-size: 12px; font-weight: 700; }
+.angle-box .val { font-size: 20px; font-weight: 800; font-family: monospace; }
+.c-pitch { color: var(--pitch-x); } .c-roll { color: var(--roll-y); } .c-yaw { color: var(--yaw-z); }
+.chart-wrap { flex: 1; position: relative; min-height: 150px; margin-top: 10px; }
 
-.pill {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  letter-spacing: .5px;
-  color: var(--dim);
-  font-weight: 500;
-}
+/* ── 1. CENTER: 3D Model ── */
+#canvas3d { width: 100%; flex: 1; border-radius: 8px; background: #fafafa; cursor: grab; border: 1px solid var(--border); min-height: 300px; }
+.axis-legend { display: flex; justify-content: center; gap: 16px; margin-top: 12px; font-size: 11px; font-weight: 600; }
+.axis-legend span { display: flex; align-items: center; gap: 4px; }
+.axis-legend i { width: 12px; height: 4px; border-radius: 2px; }
 
-.dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: var(--border);
-  transition: all .3s ease;
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.8);
-}
-.dot.ok  { background: var(--ok);     box-shadow: 0 0 12px rgba(16,185,129,0.6); }
-.dot.warn{ background: var(--warn);   box-shadow: 0 0 12px rgba(245,158,11,0.6); }
-.dot.off { background: var(--danger); box-shadow: 0 0 12px rgba(220,38,38,0.4); }
-@keyframes throb { 0%,100%{opacity:1; transform: scale(1)} 50%{opacity:.7; transform: scale(1.1)} }
-.dot.ok { animation: throb 2s ease-in-out infinite; }
+/* ── 3. RIGHT: Gyro & Latency ── */
+.metric-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.metric-box { background: var(--bg); padding: 12px; border-radius: 8px; text-align: center; border: 1px solid var(--border); }
+.metric-box .val { font-size: 22px; font-weight: 800; color: var(--text-main); }
+.metric-box .lbl { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
 
-.clock {
-  font-family: var(--font-hud);
-  font-size: 12px;
-  color: var(--text);
-  letter-spacing: 2px;
-  font-weight: 600;
-}
+/* ── 4. BOTTOM LEFT: Health ── */
+.health-grid { display: flex; gap: 20px; align-items: center; justify-content: space-around; height: 100%; }
+.health-item { text-align: center; }
+.health-item .val { font-size: 24px; font-weight: 800; color: var(--text-main); }
+.health-item .lbl { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; }
 
-/* ── Main grid ───────────────────────────────────────────── */
-main {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 280px 1fr 280px;
-  grid-template-rows: 1fr 160px;
-  gap: 2px;
-  background: transparent;
-  overflow: hidden;
-  padding: 2px;
-}
-
-/* ── Panel base ─────────────────────────────────────────── */
-.panel {
-  background: var(--surface);
-  overflow: hidden;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  border-radius: 12px;
-  box-shadow: 
-    0 4px 6px -1px rgba(0, 0,0, 0.1),
-    0 2px 4px -1px rgba(0, 0,0, 0.06);
-  border: 1px solid var(--border);
-}
-
-.panel-label {
-  font-family: var(--font-hud);
-  font-size: 10px;
-  letter-spacing: 2.5px;
-  color: var(--dim);
-  padding: 12px 16px 8px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-  font-weight: 600;
-}
-
-.panel-label span {
-  color: var(--accent);
-  margin-right: 8px;
-  font-size: 12px;
-}
-
-/* ── LEFT: Pitch/Roll/Yaw charts ────────────────────────── */
-.panel-left {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.angle-strip {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  flex: 1;
-  padding: 12px 16px;
-  overflow: hidden;
-}
-
-.angle-block {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.angle-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 4px;
-}
-
-.angle-name {
-  font-family: var(--font-hud);
-  font-size: 10px;
-  letter-spacing: 2px;
-  font-weight: 600;
-}
-
-.angle-val {
-  font-size: 22px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  transition: all .2s ease;
-}
-
-.angle-unit { 
-  font-size: 10px; 
-  color: var(--dim); 
-  margin-left: 3px;
-  font-weight: 500;
-}
-.angle-chart-wrap { 
-  flex: 1; 
-  min-height: 0; 
-  position: relative;
-  padding: 8px 0;
-}
-
-.n-pitch .angle-name, .n-pitch .angle-val { color: var(--pitch); }
-.n-roll  .angle-name, .n-roll  .angle-val { color: var(--roll); }
-.n-yaw   .angle-name, .n-yaw   .angle-val { color: var(--yaw); }
-
-.sep { 
-  height: 2px; 
-  background: linear-gradient(90deg, transparent, var(--border-hi), transparent); 
-  margin: 8px 0; 
-  flex-shrink: 0; 
-  border-radius: 2px;
-}
-
-/* ── CENTER: 3D Model ───────────────────────────────────── */
-.panel-center {
-  grid-column: 2;
-  grid-row: 1;
-  display: flex;
-  flex-direction: column;
-  border: 2px solid var(--border-hi);
-}
-
-#canvas3d {
-  flex: 1;
-  width: 100%;
-  display: block;
-  background: linear-gradient(135deg, #f0f9ff 0%, #f3f4f6 50%, #fef3c7 100%);
-  border-radius: 0 0 10px 10px;
-  position: relative;
-}
-
-#canvas3d::before {
-  content: '3D MODEL';
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: var(--font-hud);
-  font-size: 11px;
-  color: rgba(30,41,59,0.7);
-  letter-spacing: 2px;
-  z-index: 10;
-  font-weight: 600;
-}
-
-.angle-readout {
-  display: flex;
-  justify-content: center;
-  gap: 32px;
-  padding: 16px;
-  border-top: 1px solid var(--border);
-  flex-shrink: 0;
-  background: linear-gradient(90deg, rgba(4,120,242,0.08), transparent, rgba(124,58,237,0.08));
-}
-
-.readout-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.readout-label {
-  font-family: var(--font-hud);
-  font-size: 9px;
-  letter-spacing: 2px;
-  color: var(--dim);
-  font-weight: 600;
-}
-
-.readout-val {
-  font-size: 18px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── RIGHT: Gyro & Latency ──────────────────────────────── */
-.panel-right {
-  grid-column: 3;
-  grid-row: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.perf-strip {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 12px 16px;
-  gap: 0;
-  overflow: hidden;
-}
-
-.perf-block {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.perf-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 4px;
-}
-
-.perf-name {
-  font-family: var(--font-hud);
-  font-size: 10px;
-  letter-spacing: 1.5px;
-  color: var(--dim);
-  font-weight: 600;
-}
-
-.perf-val {
-  font-size: 18px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--accent2);
-}
-
-.perf-chart-wrap { 
-  flex: 1; 
-  min-height: 0; 
-  position: relative;
-  padding: 8px 0;
-}
-
-/* Latency color */
-.lat-ok   { color: var(--ok); }
-.lat-warn { color: var(--warn); }
-.lat-bad  { color: var(--danger); }
-
-/* PPS meter */
-.pps-bar-wrap {
-  height: 6px;
-  background: var(--border);
-  border-radius: 3px;
-  margin-top: 6px;
-  overflow: hidden;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
-}
-
-.pps-bar {
-  height: 100%;
-  border-radius: 3px;
-  background: linear-gradient(90deg, var(--accent2), var(--accent));
-  transition: width .5s ease, background .3s ease;
-  box-shadow: 0 0 8px rgba(124,58,237,0.3);
-}
-
-/* ── BOTTOM: Health + OTA ───────────────────────────────── */
-.panel-bottom {
-  grid-column: 1 / -1;
-  grid-row: 2;
-  display: flex;
-  flex-direction: row;
-}
-
-.health-grid {
-  flex: 1;
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  padding: 16px 20px;
-  gap: 0 20px;
-  align-items: center;
-}
-
-.health-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.h-label {
-  font-family: var(--font-hud);
-  font-size: 9px;
-  letter-spacing: 2px;
-  color: var(--dim);
-  text-transform: uppercase;
-  font-weight: 600;
-}
-
-.h-val {
-  font-size: 22px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-  line-height: 1;
-}
-
-.h-unit {
-  font-size: 10px;
-  color: var(--text-light);
-  font-weight: 500;
-}
-
-/* Battery bar */
-.bat-track {
-  height: 6px;
-  background: var(--border);
-  border-radius: 4px;
-  margin-top: 6px;
-  overflow: hidden;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
-}
-
-.bat-fill {
-  height: 100%;
-  border-radius: 4px;
-  transition: width .6s ease, background .3s ease;
-  box-shadow: 0 0 8px rgba(16,185,129,0.4);
-}
-
-/* RSSI signal bars */
-.rssi-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 16px;
-  margin-top: 6px;
-}
-
-.rssi-bar {
-  width: 6px;
-  border-radius: 2px;
-  background: var(--border);
-  transition: all .3s ease;
-  box-shadow: inset 0 1px 1px rgba(255,255,255,0.3);
-}
-
-/* Uptime glow */
-#v-uptime { 
-  color: var(--accent); 
-  text-shadow: 0 0 8px rgba(14,165,233,0.4);
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* MQTT badge */
-.mqtt-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--border-hi);
-  font-size: 10px;
-  letter-spacing: 1px;
-  font-family: var(--font-hud);
-  margin-top: 8px;
-  width: fit-content;
-  font-weight: 600;
-  background: rgba(255,255,255,0.7);
-}
-
-.mqtt-badge.ok   { 
-  border-color: var(--ok); 
-  color: var(--ok); 
-  background: rgba(16,185,129,0.1);
-  box-shadow: 0 0 8px rgba(16,185,129,0.2);
-}
-.mqtt-badge.fail { 
-  border-color: var(--danger);
-  color: var(--danger);
-  background: rgba(220,38,38,0.1);
-}
-
-/* OTA section - FULL FEATURES */
-.ota-zone {
-  width: 260px;
-  flex-shrink: 0;
-  border-left: 2px solid var(--border-hi);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  padding: 20px 24px;
-  background: linear-gradient(135deg, rgba(14,165,233,0.08), rgba(124,58,237,0.08));
-}
-
-.ota-title {
-  font-family: var(--font-hud);
-  font-size: 11px;
-  letter-spacing: 2.5px;
-  color: var(--text);
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.ota-btn {
-  width: 100%;
-  padding: 12px 20px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  border: none;
-  color: white;
-  font-family: var(--font-hud);
-  font-size: 11px;
-  letter-spacing: 2px;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: all .2s ease;
-  font-weight: 700;
-  box-shadow: 0 6px 16px rgba(14,165,233,0.3);
-  text-transform: uppercase;
-}
-
-.ota-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(14,165,233,0.4);
-}
-
-.ota-btn:disabled { 
-  opacity: .6; 
-  cursor: not-allowed;
-  box-shadow: 0 4px 12px rgba(14,165,233,0.2);
-}
-
-#ota-msg { 
-  font-size: 10px; 
-  text-align: center; 
-  color: var(--text-light); 
-  min-height: 16px;
-  font-weight: 600;
-  padding: 8px;
-  border-radius: 6px;
-  background: rgba(255,255,255,0.5);
-  width: 100%;
-}
-
-#ota-progress {
-  width: 100%;
-  height: 4px;
-  background: var(--border);
-  border-radius: 2px;
-  overflow: hidden;
-  margin-top: 8px;
-}
-
-#ota-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--ok), var(--accent));
-  width: 0%;
-  transition: width .3s ease;
-}
-
-/* ── Corner decoration ──────────────────────────────────── */
-.corner {
-  position: absolute;
-  width: 12px; height: 12px;
-  border-color: var(--accent2);
-  border-style: solid;
-  opacity: .6;
-}
-.corner.tl { top: 8px; left: 8px;  border-width: 2px 0 0 2px; }
-.corner.br { bottom: 8px; right: 8px; border-width: 0 2px 2px 0; }
+/* ── 5. BOTTOM RIGHT: OTA ── */
+.ota-btn { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.2); }
+.ota-btn:hover { background: #7c3aed; transform: translateY(-1px); }
+.ota-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+#ota-status { font-size: 11px; text-align: center; margin-top: 8px; font-weight: 600; color: var(--text-muted); min-height: 16px; }
 </style>
 </head>
 <body>
 
-<!-- ── HEADER ── -->
-<header>
-  <div class="hud-title">GAMEFPS CONTROLLER MONITOR</div>
-  <div class="status-row">
-    <div class="pill"><div class="dot" id="d-server"></div><span id="t-server">SERVER</span></div>
-    <div class="pill"><div class="dot" id="d-mqtt"></div><span id="t-mqtt">MQTT</span></div>
-    <div class="pill"><div class="dot" id="d-esp"></div><span id="t-esp">ESP32</span></div>
+<div class="header">
+  <div class="brand">WEB DASHBOARD CONTROLLER</div>
+  <div class="status-bar">
+    <div class="badge"><div class="dot err" id="d-server"></div>SERVER</div>
+    <div class="badge"><div class="dot err" id="d-mqtt"></div>MQTT</div>
+    <div class="badge"><div class="dot err" id="d-esp"></div>ESP32</div>
   </div>
-  <div class="clock" id="clock">--:--:--</div>
-</header>
+  <div id="clock">00:00:00</div>
+</div>
 
-<!-- ── MAIN GRID ── -->
-<main>
-
-  <!-- LEFT: Pitch / Roll / Yaw Charts -->
-  <div class="panel panel-left">
-    <div class="corner tl"></div>
-    <div class="panel-label"><span>◈</span>ORIENTATION TELEMETRY</div>
-    <div class="angle-strip">
-
-      <div class="angle-block n-pitch">
-        <div class="angle-header">
-          <span class="angle-name">PITCH</span>
-          <div><span class="angle-val" id="v-pitch">—</span><span class="angle-unit">°</span></div>
-        </div>
-        <div class="angle-chart-wrap"><canvas id="c-pitch"></canvas></div>
-      </div>
-
-      <div class="sep"></div>
-
-      <div class="angle-block n-roll">
-        <div class="angle-header">
-          <span class="angle-name">ROLL</span>
-          <div><span class="angle-val" id="v-roll">—</span><span class="angle-unit">°</span></div>
-        </div>
-        <div class="angle-chart-wrap"><canvas id="c-roll"></canvas></div>
-      </div>
-
-      <div class="sep"></div>
-
-      <div class="angle-block n-yaw">
-        <div class="angle-header">
-          <span class="angle-name">YAW</span>
-          <div><span class="angle-val" id="v-yaw">—</span><span class="angle-unit">°</span></div>
-        </div>
-        <div class="angle-chart-wrap"><canvas id="c-yaw"></canvas></div>
-      </div>
-
-    </div>
+<div class="main-grid">
+  <div class="card">
+    <div class="card-title">Góc định hướng (Orientation)</div>
+    <div class="angle-box"><span class="lbl c-pitch">PITCH (X)</span><span class="val c-pitch" id="v-pitch">0.0°</span></div>
+    <div class="angle-box"><span class="lbl c-roll">ROLL (Y)</span><span class="val c-roll" id="v-roll">0.0°</span></div>
+    <div class="angle-box"><span class="lbl c-yaw">YAW (Z)</span><span class="val c-yaw" id="v-yaw">0.0°</span></div>
+    
+    <div class="card-title" style="margin-top:16px;">Biểu đồ Góc (60s)</div>
+    <div class="chart-wrap"><canvas id="angle-chart"></canvas></div>
   </div>
 
-  <!-- CENTER: 3D Model - ENHANCED -->
-  <div class="panel panel-center">
+  <div class="card" style="padding: 8px;">
     <canvas id="canvas3d"></canvas>
-    <div class="angle-readout">
-      <div class="readout-item">
-        <span class="readout-label">PITCH</span>
-        <span class="readout-val" id="r-pitch">—.—°</span>
-      </div>
-      <div class="readout-item">
-        <span class="readout-label">ROLL</span>
-        <span class="readout-val" id="r-roll">—.—°</span>
-      </div>
-      <div class="readout-item">
-        <span class="readout-label">YAW</span>
-        <span class="readout-val" id="r-yaw">—.—°</span>
-      </div>
+    <div class="axis-legend">
+      <span class="c-pitch"><i style="background:var(--pitch-x)"></i> Trục X (Pitch)</span>
+      <span class="c-roll"><i style="background:var(--roll-y)"></i> Trục Y (Roll)</span>
+      <span class="c-yaw"><i style="background:var(--yaw-z)"></i> Trục Z (Yaw)</span>
     </div>
   </div>
 
-  <!-- RIGHT: Gyro drift + Latency + PPS -->
-  <div class="panel panel-right">
-    <div class="corner br"></div>
-    <div class="panel-label"><span>◈</span>PERFORMANCE METRICS</div>
-    <div class="perf-strip">
-
-      <div class="perf-block">
-        <div class="perf-header">
-          <span class="perf-name">YAW DRIFT MONITOR</span>
-        </div>
-        <div class="perf-chart-wrap"><canvas id="c-drift"></canvas></div>
+  <div class="card">
+    <div class="card-title">Hiệu suất Mạng</div>
+    <div class="metric-row">
+      <div class="metric-box">
+        <div class="val" id="v-lat" style="color:var(--accent)">—</div>
+        <div class="lbl">LATENCY (ms)</div>
       </div>
-
-      <div class="sep"></div>
-
-      <div class="perf-block" style="flex:0;min-height:auto;padding-bottom:8px">
-        <div class="perf-header">
-          <span class="perf-name">LATENCY</span>
-          <span class="perf-val" id="v-lat">— ms</span>
-        </div>
-        <div class="perf-header" style="margin-top:8px">
-          <span class="perf-name">PACKET RATE</span>
-          <span class="perf-val" id="v-pps">— p/s</span>
-        </div>
-        <div class="pps-bar-wrap"><div class="pps-bar" id="pps-bar" style="width:0%"></div></div>
+      <div class="metric-box">
+        <div class="val" id="v-pps">—</div>
+        <div class="lbl">PACKETS / SEC</div>
       </div>
-
-      <div class="sep"></div>
-
-      <div class="perf-block">
-        <div class="perf-header">
-          <span class="perf-name">PITCH HISTORY</span>
-        </div>
-        <div class="perf-chart-wrap"><canvas id="c-gyro"></canvas></div>
-      </div>
-
     </div>
+    
+    <div class="card-title" style="margin-top:8px;">Vận tốc góc (Gyroscope)</div>
+    <div class="chart-wrap"><canvas id="gyro-chart"></canvas></div>
   </div>
+</div>
 
-  <!-- BOTTOM: Health + FULL OTA -->
-  <div class="panel panel-bottom">
+<div class="bottom-grid">
+  <div class="card">
+    <div class="card-title">Tình trạng phần cứng (Health)</div>
     <div class="health-grid">
-
       <div class="health-item">
-        <span class="h-label">UPTIME</span>
-        <span class="h-val" id="v-uptime">--:--:--</span>
-        <span class="h-unit">HH:MM:SS</span>
+        <div class="val" id="v-uptime" style="color:var(--accent)">00:00:00</div>
+        <div class="lbl">THỜI GIAN SỬ DỤNG</div>
       </div>
-
       <div class="health-item">
-        <span class="h-label">CORE TEMP</span>
-        <span class="h-val" id="v-temp">—°C</span>
-        <span class="h-unit" id="v-temp-s">ESP32 Internal</span>
+        <div class="val" id="v-temp">—°C</div>
+        <div class="lbl" id="v-temp-lbl">NHIỆT ĐỘ LÕI</div>
       </div>
-
       <div class="health-item">
-        <span class="h-label">BATTERY</span>
-        <span class="h-val" id="v-volt">—.— V</span>
-        <div class="bat-track"><div class="bat-fill" id="bat-f"></div></div>
+        <div class="val" id="v-rssi">— dBm</div>
+        <div class="lbl">WI-FI</div>
       </div>
-
-      <div class="health-item">
-        <span class="h-label">WIFI RSSI</span>
-        <span class="h-val" id="v-rssi">— dBm</span>
-        <div class="rssi-bars" id="rssi-b">
-          <div class="rssi-bar" style="height:3px"  id="rb1"></div>
-          <div class="rssi-bar" style="height:5px"  id="rb2"></div>
-          <div class="rssi-bar" style="height:8px"  id="rb3"></div>
-          <div class="rssi-bar" style="height:11px" id="rb4"></div>
-          <div class="rssi-bar" style="height:14px" id="rb5"></div>
-        </div>
-      </div>
-
-      <div class="health-item">
-        <span class="h-label">FIRMWARE</span>
-        <span class="h-val" id="v-fw">v —</span>
-        <div class="mqtt-badge fail" id="mqtt-badge">
-          <div class="dot" id="d-mqtt2"></div>
-          <span id="t-mqtt2">HIVEMQ</span>
-        </div>
-      </div>
-
-      <div class="health-item">
-        <span class="h-label">ESP32 STATUS</span>
-        <span class="h-val" id="v-esp-s" style="font-size:12px;margin-top:4px">OFFLINE</span>
-        <span class="h-unit" id="v-reset">Reset count: —</span>
-      </div>
-
-    </div>
-
-    <!-- FULL OTA ZONE -->
-    <div class="ota-zone">
-      <div class="ota-title">REMOTE UPDATE</div>
-      <button class="ota-btn" id="ota-btn" onclick="triggerOTA()">▶ DEPLOY OTA</button>
-      <div id="ota-msg"></div>
-      <div id="ota-progress"><div id="ota-progress-fill"></div></div>
     </div>
   </div>
 
-</main>
+  <div class="card">
+    <div class="card-title">Cập nhật OTA</div>
+    <button class="ota-btn" id="ota-btn" onclick="triggerOTA()">PHÁT LỆNH NẠP FIRMWARE</button>
+    <div id="ota-status">Hệ thống sẵn sàng...</div>
+  </div>
+</div>
 
 <script>
 // ─────────────────────────────────────────────────────────
-// CONFIG
+// CẤU HÌNH & BIẾN
 // ─────────────────────────────────────────────────────────
 const API = "https://gamefps-server.onrender.com";
-const MAX = 60;
+let pktCount = 0, lastPktCount = 0, lastPktTime = Date.now();
+let lastDataTime = 0, lastSeenTs = null;
+let baseUptime = 0, needUptimeReset = true;
+
+// Cập nhật đồng hồ Header
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('vi-VN', { hour12: false });
+}, 1000);
 
 // ─────────────────────────────────────────────────────────
-// CLOCK
+// 1. THREE.JS 3D MODEL 
 // ─────────────────────────────────────────────────────────
-function tickClock() {
-  document.getElementById('clock').textContent =
-    new Date().toLocaleTimeString('vi-VN', { hour12: false });
-}
-tickClock();
-setInterval(tickClock, 1000);
-
-// ─────────────────────────────────────────────────────────
-// THREE.JS 3D - ENHANCED with BOLD AXES
-// ─────────────────────────────────────────────────────────
-let cube, axesHelper;
-(function() {
-  const canvas   = document.getElementById('canvas3d');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  const scene    = new THREE.Scene();
-  const camera   = new THREE.PerspectiveCamera(40, 2, 0.1, 100);
-  camera.position.set(4, 2.5, 4);
+let renderer, scene, camera, cube, pivot;
+(function init3D() {
+  const canvas = document.getElementById('canvas3d');
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(40, canvas.clientWidth / canvas.clientHeight, 0.1, 100);
+  camera.position.set(3, 2, 4);
   camera.lookAt(0, 0, 0);
 
-  // Enhanced lighting
-  scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-  const dl = new THREE.DirectionalLight(0xffffff, 1.2);
-  dl.position.set(5, 5, 3); 
-  dl.castShadow = true;
-  scene.add(dl);
-  
-  const pl = new THREE.PointLight(0x0ea5e9, 1.8, 10);
-  pl.position.set(-3, 2, 3); scene.add(pl);
-  
-  const pl2 = new THREE.PointLight(0x7c3aed, 1.5, 10);
-  pl2.position.set(3, 1, -2); scene.add(pl2);
+  // Ánh sáng cho nền sáng
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(5, 5, 2);
+  scene.add(dirLight);
 
-  // Enhanced Controller Model
-  const geo  = new THREE.BoxGeometry(2.8, 0.6, 1.2);
-  const mats = [
-    new THREE.MeshPhongMaterial({ color: 0xe2e8f0, shininess: 100 }),
-    new THREE.MeshPhongMaterial({ color: 0xe2e8f0, shininess: 100 }),
-    new THREE.MeshPhongMaterial({ color: 0xf1f5f9, shininess: 80 }),
-    new THREE.MeshPhongMaterial({ color: 0xf1f5f9, shininess: 80 }),
-    new THREE.MeshPhongMaterial({ 
-      color: 0x0284c7, 
-      emissive: 0x0284c710, 
-      shininess: 120 
-    }),
-    new THREE.MeshPhongMaterial({ color: 0x0ea5e9, shininess: 100 }),
-  ];
-  cube = new THREE.Mesh(geo, mats);
-  cube.castShadow = true;
-  cube.receiveShadow = true;
-  scene.add(cube);
+  // Tạo Pivot (Tâm xoay)
+  pivot = new THREE.Group();
+  scene.add(pivot);
 
-  // Enhanced Grid
-  const grid = new THREE.GridHelper(10, 20, 0xa1a1aa, 0xd1d5db);
-  grid.position.y = -0.6; 
-  grid.material.opacity = 0.6;
-  grid.material.transparent = true;
+  // Khối chữ nhật mô phỏng tay cầm 
+  const geo = new THREE.BoxGeometry(2.4, 0.4, 1.2);
+  const mat = new THREE.MeshPhongMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.9 });
+  cube = new THREE.Mesh(geo, mat);
+  pivot.add(cube);
+
+  // (X=Đỏ, Y=XanhLá, Z=XanhDương)
+  const origin = new THREE.Vector3(0, 0, 0);
+  const arrowX = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), origin, 1.8, 0xef4444, 0.3, 0.2); // Pitch
+  const arrowY = new THREE.ArrowHelper(new THREE.Vector3(0,1,0), origin, 1.0, 0x10b981, 0.3, 0.2); // Roll
+  const arrowZ = new THREE.ArrowHelper(new THREE.Vector3(0,0,1), origin, 1.5, 0x3b82f6, 0.3, 0.2); // Yaw
+  pivot.add(arrowX); pivot.add(arrowY); pivot.add(arrowZ);
+
+  // Lưới nền mờ
+  const grid = new THREE.GridHelper(8, 10, 0xcbd5e1, 0xf1f5f9);
+  grid.position.y = -0.8;
   scene.add(grid);
 
-  // BOLD & BRIGHT Axes - 3X THICKER
-  axesHelper = new THREE.AxesHelper(2.5);
-  axesHelper.material.linewidth = 8; // Bold lines
-  scene.add(axesHelper);
+  function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
+  animate();
 
-  // Custom axis labels
-  const axisLabels = {
-    x: createAxisLabel('X', 2.8, 0, 0, var('--axis-x')),
-    y: createAxisLabel('Y', 0, 2.8, 0, var('--axis-y')),
-    z: createAxisLabel('Z', 0, 0, 2.8, var('--axis-z'))
-  };
-  scene.add(axisLabels.x);
-  scene.add(axisLabels.y);
-  scene.add(axisLabels.z);
-
-  function createAxisLabel(text, x, y, z, color) {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    canvas.width = 128; canvas.height = 64;
-    context.fillStyle = color;
-    context.font = 'bold 32px Orbitron';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText(text, 64, 32);
-    
-    const texture = new THREE.CanvasTexture(canvas);
-    const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
-    const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.position.set(x, y, z);
-    sprite.scale.set(1.2, 0.6, 1);
-    return sprite;
-  }
-
-  function resize() {
-    const w = canvas.clientWidth, h = canvas.clientHeight;
-    renderer.setSize(w, h, false);
-    camera.aspect = w / h;
+  window.addEventListener('resize', () => {
+    renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+    camera.aspect = canvas.clientWidth / canvas.clientHeight;
     camera.updateProjectionMatrix();
-  }
-  resize();
-  new ResizeObserver(resize).observe(canvas);
-
-  // Enhanced render loop
-  (function loop() { 
-    requestAnimationFrame(loop); 
-    // Rotate axes labels slightly for better visibility
-    if (axesHelper) {
-      axesHelper.rotation.y += 0.002;
-    }
-    renderer.render(scene, camera); 
-  })();
+  });
+  // Kích hoạt size ban đầu
+  renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
 })();
 
-function rotateCube(p, r, y) {
-  if (!cube || !axesHelper) return;
-  cube.rotation.set(
-    THREE.MathUtils.degToRad(p),
-    THREE.MathUtils.degToRad(y),
-    THREE.MathUtils.degToRad(r)
-  );
-  // Sync axes rotation
-  axesHelper.rotation.set(
-    THREE.MathUtils.degToRad(p),
-    THREE.MathUtils.degToRad(y),
-    THREE.MathUtils.degToRad(r)
+function updateCube(pitch, roll, yaw) {
+  if (!pivot) return;
+  // Map đúng hệ trục của Godot/MPU sang ThreeJS
+  pivot.rotation.set(
+    THREE.MathUtils.degToRad(pitch),
+    THREE.MathUtils.degToRad(yaw),
+    THREE.MathUtils.degToRad(roll)
   );
 }
 
 // ─────────────────────────────────────────────────────────
-// CHART FACTORY
+// CHARTS 
 // ─────────────────────────────────────────────────────────
-function mkChart(id, color, fill = false) {
-  return new Chart(document.getElementById(id), {
-    type: 'line',
-    data: {
-      labels: [],
-      datasets: [{ 
-        data: [], 
-        borderColor: color, 
-        borderWidth: 2,
-        tension: .4, 
-        fill: fill,
-        backgroundColor: fill ? color + '20' : 'transparent',
-        pointRadius: 0
-      }]
-    },
-    options: {
-      animation: false, 
-      responsive: true, 
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { display: false },
-        y: { 
-          display: false,
-          grid: { color: 'rgba(0,0,0,0.03)' }
-        }
-      }
-    }
-  });
-}
+Chart.defaults.color = '#64748b';
+Chart.defaults.font.family = 'monospace';
 
-const charts = {
-  pitch: mkChart('c-pitch', '#0284c7'),
-  roll:  mkChart('c-roll',  '#0ea5e9'),
-  yaw:   mkChart('c-yaw',   '#f97316'),
-  drift: mkChart('c-drift', '#f97316', true),
-  gyro:  mkChart('c-gyro',  '#7c3aed'),
-};
+const MAX = 60;
+let labels = [], dP = [], dR = [], dY = [], dGx = [], dGy = [], dGz = [];
 
-function pushChart(chart, val) {
-  const d = chart.data.datasets[0].data;
-  const l = chart.data.labels;
-  d.push(val); l.push('');
-  if (d.length > MAX) { d.shift(); l.shift(); }
-  chart.update('none');
-}
+const angleChart = new Chart(document.getElementById('angle-chart'), {
+  type: 'line',
+  data: { labels, datasets: [
+    { label:'Pitch', data:dP, borderColor:'#ef4444', borderWidth:2, tension:0.2, pointRadius:0 },
+    { label:'Roll',  data:dR, borderColor:'#10b981', borderWidth:2, tension:0.2, pointRadius:0 },
+    { label:'Yaw',   data:dY, borderColor:'#3b82f6', borderWidth:2, tension:0.2, pointRadius:0 }
+  ]},
+  options: {
+    animation:false, responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ position:'bottom', labels:{ boxWidth:12 } } },
+    scales:{ x:{ display:false }, y:{ grid:{ color:'#e2e8f0' } } }
+  }
+});
+
+const gyroChart = new Chart(document.getElementById('gyro-chart'), {
+  type: 'line',
+  data: { labels, datasets: [
+    { label:'Gyro X', data:dGx, borderColor:'#ef4444', borderWidth:1.5, tension:0.1, pointRadius:0 },
+    { label:'Gyro Y', data:dGy, borderColor:'#10b981', borderWidth:1.5, tension:0.1, pointRadius:0 },
+    { label:'Gyro Z', data:dGz, borderColor:'#3b82f6', borderWidth:1.5, tension:0.1, pointRadius:0 }
+  ]},
+  options: {
+    animation:false, responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10 } } },
+    scales:{ x:{ display:false }, y:{ grid:{ color:'#e2e8f0' } } }
+  }
+});
+
+function push(arr, val) { arr.push(val); if(arr.length > MAX) arr.shift(); }
 
 // ─────────────────────────────────────────────────────────
-// HELPERS
+// FETCH LOGIC
 // ─────────────────────────────────────────────────────────
-function setDot(id, state) {
+function setStatus(id, isOk) {
   const el = document.getElementById(id);
-  el.className = 'dot' + (state === 'ok' ? ' ok' : state === 'warn' ? ' warn' : ' off');
+  el.className = 'dot ' + (isOk ? 'ok' : 'err');
 }
-
-function fmtUptime(s) {
-  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), ss = s%60;
-  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
-}
-
-function setRSSI(v) {
-  const bars = [1,2,3,4,5].map(i => document.getElementById('rb'+i));
-  const lvl  = v >= -55 ? 5 : v >= -65 ? 4 : v >= -75 ? 3 : v >= -85 ? 2 : 1;
-  const col  = v >= -65 ? 'var(--ok)' : v >= -75 ? 'var(--warn)' : 'var(--danger)';
-  bars.forEach((b, i) => {
-    b.style.background = i < lvl ? col : 'var(--border)';
-    b.style.boxShadow = i < lvl ? `0 0 6px ${col}` : 'none';
-  });
-  const el = document.getElementById('v-rssi');
-  el.textContent = v + ' dBm';
-  el.style.color = col;
-}
-
-function setBat(volt) {
-  const pct = Math.min(100, Math.max(0, ((volt-3.0)/(4.2-3.0))*100));
-  const col = pct > 50 ? 'var(--ok)' : pct > 20 ? 'var(--warn)' : 'var(--danger)';
-  document.getElementById('v-volt').textContent = volt.toFixed(2) + ' V';
-  document.getElementById('v-volt').style.color = col;
-  const f = document.getElementById('bat-f');
-  f.style.width = pct + '%';
-  f.style.background = col;
-}
-
-// ─────────────────────────────────────────────────────────
-// OFFLINE RESET
-// ─────────────────────────────────────────────────────────
-const DATA_TIMEOUT = 5000;
-let lastDataTime = 0, espOnline = false;
-
-function resetDisplay() {
-  if (!espOnline) return;
-  espOnline = false;
-  ['v-pitch','v-roll','v-yaw'].forEach(id => document.getElementById(id).textContent = '—');
-  ['r-pitch','r-roll','r-yaw'].forEach(id => document.getElementById(id).textContent = '—.—°');
-  document.getElementById('v-lat').textContent = '— ms';
-  document.getElementById('v-pps').textContent = '— p/s';
-  document.getElementById('pps-bar').style.width = '0%';
-  document.getElementById('v-esp-s').textContent = 'OFFLINE';
-  document.getElementById('v-esp-s').style.color = 'var(--danger)';
-  setDot('d-esp', 'off');
-  if (cube) cube.rotation.set(0,0,0);
-}
-
-// ─────────────────────────────────────────────────────────
-// FETCH SENSOR
-// ─────────────────────────────────────────────────────────
-let lastTS = null, pktCount = 0, lastPktC = 0, lastPktT = Date.now();
 
 async function fetchSensor() {
   const t0 = Date.now();
   try {
-    const res = await fetch(API + '/api/latest');
+    const res = await fetch(`${API}/api/latest`);
     const d   = await res.json();
     const lat = Date.now() - t0;
+    
+    setStatus('d-server', true);
 
-    setDot('d-server', 'ok');
-    document.getElementById('t-server').textContent = 'SERVER';
-
-    if (!d || d.pitch === undefined) { resetDisplay(); return; }
-
-    const fresh = d.timestamp && (Date.now() - new Date(d.timestamp).getTime()) < DATA_TIMEOUT;
-    if (!fresh) { resetDisplay(); return; }
-
-    espOnline = true;
-    lastDataTime = Date.now();
-    if (d.timestamp !== lastTS) { lastTS = d.timestamp; pktCount++; }
-
-    const P = d.pitch, R = d.roll, Y = d.yaw;
-    document.getElementById('v-pitch').textContent = P.toFixed(1);
-    document.getElementById('v-roll').textContent  = R.toFixed(1);
-    document.getElementById('v-yaw').textContent   = Y.toFixed(1);
-    document.getElementById('r-pitch').textContent = P.toFixed(1) + '°';
-    document.getElementById('r-roll').textContent  = R.toFixed(1) + '°';
-    document.getElementById('r-yaw').textContent   = Y.toFixed(1) + '°';
-
-    document.getElementById('r-pitch').style.color = 'var(--pitch)';
-    document.getElementById('r-roll').style.color  = 'var(--roll)';
-    document.getElementById('r-yaw').style.color   = 'var(--yaw)';
-
-    rotateCube(P, R, Y);
-
-    pushChart(charts.pitch, P);
-    pushChart(charts.roll,  R);
-    pushChart(charts.yaw,   Y);
-    pushChart(charts.drift, Y);
-    pushChart(charts.gyro,  P);
-
-    const lc = lat < 80 ? 'lat-ok' : lat < 200 ? 'lat-warn' : 'lat-bad';
-    const lEl = document.getElementById('v-lat');
-    lEl.textContent  = lat + ' ms';
-    lEl.className    = 'perf-val ' + lc;
-
-    setDot('d-esp', 'ok');
-    document.getElementById('t-esp').textContent = 'ESP32';
-    document.getElementById('v-esp-s').textContent = 'ONLINE';
-    document.getElementById('v-esp-s').style.color = 'var(--ok)';
-
-  } catch {
-    setDot('d-server', 'off');
-    document.getElementById('t-server').textContent = 'SERVER ✗';
-    resetDisplay();
-  }
-}
-
-// ─────────────────────────────────────────────────────────
-// FETCH HEALTH
-// ─────────────────────────────────────────────────────────
-async function fetchHealth() {
-  try {
-    const res = await fetch(API + '/api/health');
-    const h   = await res.json();
-    if (!h || !espOnline) return;
-
-    if (h.uptime      !== undefined) document.getElementById('v-uptime').textContent = fmtUptime(h.uptime);
-    if (h.voltage     !== undefined) setBat(h.voltage);
-    if (h.rssi        !== undefined) setRSSI(h.rssi);
-    if (h.version)                   document.getElementById('v-fw').textContent = 'v' + h.version;
-    if (h.resetCount  !== undefined) document.getElementById('v-reset').textContent = 'Reset: ' + h.resetCount;
-
-    if (h.temperature !== undefined) {
-      const t  = h.temperature;
-      const col = t < 65 ? 'var(--ok)' : t < 80 ? 'var(--warn)' : 'var(--danger)';
-      const lbl = t < 65 ? 'NORMAL' : t < 80 ? 'HIGH LOAD' : '⚠ OVERHEAT';
-      document.getElementById('v-temp').textContent  = t.toFixed(1) + '°C';
-      document.getElementById('v-temp').style.color  = col;
-      document.getElementById('v-temp-s').textContent = lbl;
-      document.getElementById('v-temp-s').style.color = col;
+    if (!d || d.pitch === undefined) return;
+    
+    if (d.timestamp && d.timestamp !== lastSeenTs) {
+      lastSeenTs = d.timestamp;
+      lastDataTime = Date.now(); 
+      pktCount++;
     }
 
-    const mqOk = h.mqttConnected === true;
-    setDot('d-mqtt',  mqOk ? 'ok' : 'off');
-    setDot('d-mqtt2', mqOk ? 'ok' : 'off');
-    const mb = document.getElementById('mqtt-badge');
-    mb.className = 'mqtt-badge ' + (mqOk ? 'ok' : 'fail');
-    document.getElementById('t-mqtt').textContent  = mqOk ? 'MQTT' : 'MQTT ✗';
-    document.getElementById('t-mqtt2').textContent = mqOk ? 'HIVEMQ CONNECTED' : 'HIVEMQ OFFLINE';
+    if (Date.now() - lastDataTime <= 3000) {
+      setStatus('d-esp', true);
+      document.getElementById('v-pitch').textContent = d.pitch.toFixed(1) + '°';
+      document.getElementById('v-roll').textContent  = d.roll.toFixed(1) + '°';
+      document.getElementById('v-yaw').textContent   = d.yaw.toFixed(1) + '°';
+      
+      document.getElementById('v-lat').textContent = lat;
+      document.getElementById('v-lat').style.color = lat < 100 ? 'var(--ok)' : 'var(--warn)';
 
-  } catch {}
+      updateCube(d.pitch, d.roll, d.yaw);
+
+      const ts = new Date().toLocaleTimeString('vi-VN').slice(-8);
+      push(labels, ts);
+      push(dP, d.pitch); push(dR, d.roll); push(dY, d.yaw);
+      push(dGx, d.gx || 0); push(dGy, d.gy || 0); push(dGz, d.gz || 0);
+      
+      angleChart.update('none');
+      gyroChart.update('none');
+    }
+  } catch(e) { setStatus('d-server', false); }
 }
 
-// ─────────────────────────────────────────────────────────
-// PPS COUNTER
-// ─────────────────────────────────────────────────────────
+async function fetchHealth() {
+  try {
+    const res = await fetch(`${API}/api/health`);
+    const h   = await res.json();
+    if (!h) return;
+
+    setStatus('d-mqtt', h.mqttConnected === true);
+
+    if (Date.now() - lastDataTime <= 3000) {
+      if (h.uptime !== undefined) {
+        if (needUptimeReset) { baseUptime = h.uptime; needUptimeReset = false; }
+        let s = h.uptime - baseUptime;
+        if (s < 0) { baseUptime = h.uptime; s = 0; }
+        const hh = Math.floor(s/3600), mm = Math.floor((s%3600)/60), ss = s%60;
+        document.getElementById('v-uptime').textContent = 
+          `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+      }
+      if (h.temperature !== undefined) {
+        document.getElementById('v-temp').textContent = h.temperature.toFixed(1) + '°C';
+        document.getElementById('v-temp').style.color = h.temperature < 65 ? 'var(--ok)' : 'var(--danger)';
+      }
+      if (h.rssi !== undefined) {
+        document.getElementById('v-rssi').textContent = h.rssi + ' dBm';
+      }
+    }
+  } catch(e) {}
+}
+
 setInterval(() => {
-  const now  = Date.now();
-  const secs = (now - lastPktT) / 1000;
-  const pps  = (pktCount - lastPktC) / secs;
-  lastPktC   = pktCount;
-  lastPktT   = now;
+  const now = Date.now();
+  const secs = (now - lastPktTime) / 1000;
+  const pps = (pktCount - lastPktCount) / secs;
+  lastPktCount = pktCount; lastPktTime = now;
 
-  const display = espOnline ? pps : 0;
-  const col = display >= 20 ? 'var(--ok)' : display >= 10 ? 'var(--warn)' : 'var(--danger)';
-  document.getElementById('v-pps').textContent  = display.toFixed(1) + ' p/s';
-  document.getElementById('v-pps').style.color  = col;
-  document.getElementById('pps-bar').style.width = Math.min(100, (display/30)*100) + '%';
-  document.getElementById('pps-bar').style.background = col;
-
-  if (!espOnline) resetDisplay();
-}, 5000);
-
-// ─────────────────────────────────────────────────────────
-// FULL OTA FUNCTIONALITY
-// ─────────────────────────────────────────────────────────
-let otaPollInterval = null;
+  if (now - lastDataTime > 3000) {
+    needUptimeReset = true;
+    setStatus('d-esp', false);
+    ['v-pitch','v-roll','v-yaw','v-lat','v-pps','v-uptime','v-temp','v-rssi'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
+  } else {
+    document.getElementById('v-pps').textContent = pps.toFixed(1);
+    document.getElementById('v-pps').style.color = pps >= 15 ? 'var(--ok)' : 'var(--danger)';
+  }
+}, 1000);
 
 async function triggerOTA() {
   const btn = document.getElementById('ota-btn');
-  const msg = document.getElementById('ota-msg');
-  const progress = document.getElementById('ota-progress-fill');
-  
+  const msg = document.getElementById('ota-status');
   btn.disabled = true;
-  btn.textContent = '⏳ SENDING...';
   msg.style.color = 'var(--warn)';
-  msg.textContent = 'Sending OTA command to ESP32...';
-  progress.style.width = '20%';
-
+  msg.textContent = '⏳ Đang gửi lệnh OTA...';
   try {
-    const res = await fetch(API + '/api/trigger-ota', { method: 'POST' });
-    const result = await res.json();
-    msg.style.color = 'var(--accent)';
-    msg.textContent = 'Command sent successfully!';
-    progress.style.width = '40%';
-
-    // Poll OTA status with progress
-    if (otaPollInterval) clearInterval(otaPollInterval);
-    otaPollInterval = setInterval(async () => {
-      try {
-        const sr = await fetch(API + '/api/ota-status');
-        const st = await sr.json();
-        
-        const statusMap = {
-          pending:     { color: 'var(--warn)', text: '⏳ PENDING...', progress: 50 },
-          downloading: { color: 'var(--accent)', text: '📥 DOWNLOADING...', progress: 60 },
-          flashing:    { color: 'var(--accent2)', text: '⚡ FLASHING...', progress: 80 },
-          success:     { color: 'var(--ok)', text: '✅ SUCCESS — RESTARTING', progress: 100 },
-          error:       { color: 'var(--danger)', text: '❌ OTA ERROR', progress: 0 },
-          idle:        { color: null, text: null, progress: 0 }
-        };
-        
-        const status = statusMap[st.status] || statusMap.idle;
-        if (status.color) {
-          msg.style.color = status.color;
-          msg.textContent = status.text;
-          progress.style.width = status.progress + '%';
-        }
-        
-        if (st.status === 'success' || st.status === 'error' || st.status === 'idle') {
-          clearInterval(otaPollInterval);
-          setTimeout(() => { 
-            btn.disabled = false; 
-            btn.textContent = '▶ DEPLOY OTA';
-            msg.textContent = ''; 
-            progress.style.width = '0%';
-          }, 5000);
-        }
-      } catch (e) {
-        console.log('OTA poll error:', e);
-      }
-    }, 1500);
-
-  } catch (error) {
+    const res = await fetch(`${API}/api/trigger-ota`, { method:'POST' });
+    const json = await res.json();
+    msg.style.color = 'var(--ok)';
+    msg.textContent = '✅ Đã gửi lệnh. ESP32 sẽ tự cập nhật.';
+  } catch(e) {
     msg.style.color = 'var(--danger)';
-    msg.textContent = '❌ Connection error';
-    progress.style.width = '0%';
-    btn.disabled = false;
-    btn.textContent = '▶ DEPLOY OTA';
-    setTimeout(() => { msg.textContent = ''; }, 4000);
+    msg.textContent = '❌ Lỗi kết nối Server!';
   }
+  setTimeout(() => { btn.disabled = false; msg.textContent = 'Hệ thống sẵn sàng...'; msg.style.color='var(--text-muted)'; }, 5000);
 }
 
-// ─────────────────────────────────────────────────────────
-// START
-// ─────────────────────────────────────────────────────────
-fetchSensor();
-fetchHealth();
+fetchSensor(); fetchHealth();
 setInterval(fetchSensor, 1000);
 setInterval(fetchHealth, 3000);
 </script>
