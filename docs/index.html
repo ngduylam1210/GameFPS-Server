@@ -33,6 +33,11 @@
   --scan:      rgba(14,165,233,.02);
   --font-mono: 'JetBrains Mono', monospace;
   --font-hud:  'Orbitron', sans-serif;
+  
+  /* 3D Axes Colors - Bright & Bold */
+  --axis-x: #ef4444;
+  --axis-y: #10b981;
+  --axis-z: #3b82f6;
 }
 
 body {
@@ -123,7 +128,7 @@ main {
   flex: 1;
   display: grid;
   grid-template-columns: 280px 1fr 280px;
-  grid-template-rows: 1fr 140px;
+  grid-template-rows: 1fr 160px;
   gap: 2px;
   background: transparent;
   overflow: hidden;
@@ -236,24 +241,40 @@ main {
   grid-row: 1;
   display: flex;
   flex-direction: column;
+  border: 2px solid var(--border-hi);
 }
 
 #canvas3d {
   flex: 1;
   width: 100%;
   display: block;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-  border-radius: 0 0 12px 12px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #f3f4f6 50%, #fef3c7 100%);
+  border-radius: 0 0 10px 10px;
+  position: relative;
+}
+
+#canvas3d::before {
+  content: '3D MODEL';
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-hud);
+  font-size: 11px;
+  color: rgba(30,41,59,0.7);
+  letter-spacing: 2px;
+  z-index: 10;
+  font-weight: 600;
 }
 
 .angle-readout {
   display: flex;
   justify-content: center;
   gap: 32px;
-  padding: 12px 16px;
+  padding: 16px;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
-  background: linear-gradient(90deg, rgba(14,165,233,0.05), transparent, rgba(124,58,237,0.05));
+  background: linear-gradient(90deg, rgba(4,120,242,0.08), transparent, rgba(124,58,237,0.08));
 }
 
 .readout-item {
@@ -353,7 +374,7 @@ main {
   box-shadow: 0 0 8px rgba(124,58,237,0.3);
 }
 
-/* ── BOTTOM: Health ─────────────────────────────────────── */
+/* ── BOTTOM: Health + OTA ───────────────────────────────── */
 .panel-bottom {
   grid-column: 1 / -1;
   grid-row: 2;
@@ -472,23 +493,32 @@ main {
   background: rgba(220,38,38,0.1);
 }
 
-/* OTA section in bottom-right */
+/* OTA section - FULL FEATURES */
 .ota-zone {
-  width: 220px;
+  width: 260px;
   flex-shrink: 0;
   border-left: 2px solid var(--border-hi);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 8px;
-  padding: 16px 20px;
-  background: linear-gradient(135deg, rgba(14,165,233,0.05), rgba(124,58,237,0.05));
+  gap: 12px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, rgba(14,165,233,0.08), rgba(124,58,237,0.08));
+}
+
+.ota-title {
+  font-family: var(--font-hud);
+  font-size: 11px;
+  letter-spacing: 2.5px;
+  color: var(--text);
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .ota-btn {
   width: 100%;
-  padding: 10px 16px;
+  padding: 12px 20px;
   background: linear-gradient(135deg, var(--accent), var(--accent2));
   border: none;
   color: white;
@@ -498,26 +528,48 @@ main {
   cursor: pointer;
   border-radius: 8px;
   transition: all .2s ease;
-  font-weight: 600;
-  box-shadow: 0 4px 12px rgba(14,165,233,0.3);
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(14,165,233,0.3);
+  text-transform: uppercase;
 }
 
 .ota-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(14,165,233,0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(14,165,233,0.4);
 }
 
 .ota-btn:disabled { 
   opacity: .6; 
   cursor: not-allowed;
-  box-shadow: none;
+  box-shadow: 0 4px 12px rgba(14,165,233,0.2);
 }
+
 #ota-msg { 
   font-size: 10px; 
   text-align: center; 
   color: var(--text-light); 
-  min-height: 14px;
-  font-weight: 500;
+  min-height: 16px;
+  font-weight: 600;
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.5);
+  width: 100%;
+}
+
+#ota-progress {
+  width: 100%;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+#ota-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--ok), var(--accent));
+  width: 0%;
+  transition: width .3s ease;
 }
 
 /* ── Corner decoration ──────────────────────────────────── */
@@ -585,9 +637,8 @@ main {
     </div>
   </div>
 
-  <!-- CENTER: 3D Model -->
+  <!-- CENTER: 3D Model - ENHANCED -->
   <div class="panel panel-center">
-    <div class="panel-label"><span>◈</span>3D SPATIAL MODEL — REAL-TIME SYNC</div>
     <canvas id="canvas3d"></canvas>
     <div class="angle-readout">
       <div class="readout-item">
@@ -644,7 +695,7 @@ main {
     </div>
   </div>
 
-  <!-- BOTTOM: Health -->
+  <!-- BOTTOM: Health + FULL OTA -->
   <div class="panel panel-bottom">
     <div class="health-grid">
 
@@ -695,11 +746,12 @@ main {
 
     </div>
 
-    <!-- OTA -->
+    <!-- FULL OTA ZONE -->
     <div class="ota-zone">
-      <span style="font-family:var(--font-hud);font-size:10px;letter-spacing:2px;color:var(--dim);font-weight:600">REMOTE UPDATE</span>
+      <div class="ota-title">REMOTE UPDATE</div>
       <button class="ota-btn" id="ota-btn" onclick="triggerOTA()">▶ DEPLOY OTA</button>
       <div id="ota-msg"></div>
+      <div id="ota-progress"><div id="ota-progress-fill"></div></div>
     </div>
   </div>
 
@@ -723,40 +775,88 @@ tickClock();
 setInterval(tickClock, 1000);
 
 // ─────────────────────────────────────────────────────────
-// THREE.JS 3D - Updated for light theme
+// THREE.JS 3D - ENHANCED with BOLD AXES
 // ─────────────────────────────────────────────────────────
-let cube;
+let cube, axesHelper;
 (function() {
   const canvas   = document.getElementById('canvas3d');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   const scene    = new THREE.Scene();
   const camera   = new THREE.PerspectiveCamera(40, 2, 0.1, 100);
-  camera.position.set(3, 1.8, 3.5);
+  camera.position.set(4, 2.5, 4);
   camera.lookAt(0, 0, 0);
 
-  // Updated lighting for light theme
-  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-  const dl = new THREE.DirectionalLight(0x0ea5e9, 1.0);
-  dl.position.set(3, 4, 2); scene.add(dl);
-  const pl = new THREE.PointLight(0x7c3aed, 1.5, 8);
-  pl.position.set(-2, 1, 2); scene.add(pl);
+  // Enhanced lighting
+  scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+  const dl = new THREE.DirectionalLight(0xffffff, 1.2);
+  dl.position.set(5, 5, 3); 
+  dl.castShadow = true;
+  scene.add(dl);
+  
+  const pl = new THREE.PointLight(0x0ea5e9, 1.8, 10);
+  pl.position.set(-3, 2, 3); scene.add(pl);
+  
+  const pl2 = new THREE.PointLight(0x7c3aed, 1.5, 10);
+  pl2.position.set(3, 1, -2); scene.add(pl2);
 
-  const geo  = new THREE.BoxGeometry(2.6, 0.55, 1.1);
+  // Enhanced Controller Model
+  const geo  = new THREE.BoxGeometry(2.8, 0.6, 1.2);
   const mats = [
-    new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 100 }),
-    new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 100 }),
-    new THREE.MeshPhongMaterial({ color: 0xf1f5f9 }),
-    new THREE.MeshPhongMaterial({ color: 0xf1f5f9 }),
-    new THREE.MeshPhongMaterial({ color: 0xe2e8f0, emissive: 0x0ea5e90a }),
-    new THREE.MeshPhongMaterial({ color: 0xcbd5e1 }),
+    new THREE.MeshPhongMaterial({ color: 0xe2e8f0, shininess: 100 }),
+    new THREE.MeshPhongMaterial({ color: 0xe2e8f0, shininess: 100 }),
+    new THREE.MeshPhongMaterial({ color: 0xf1f5f9, shininess: 80 }),
+    new THREE.MeshPhongMaterial({ color: 0xf1f5f9, shininess: 80 }),
+    new THREE.MeshPhongMaterial({ 
+      color: 0x0284c7, 
+      emissive: 0x0284c710, 
+      shininess: 120 
+    }),
+    new THREE.MeshPhongMaterial({ color: 0x0ea5e9, shininess: 100 }),
   ];
   cube = new THREE.Mesh(geo, mats);
+  cube.castShadow = true;
+  cube.receiveShadow = true;
   scene.add(cube);
 
-  const grid = new THREE.GridHelper(8, 12, 0x94a3b8, 0xbacdd3);
-  grid.position.y = -0.4; scene.add(grid);
+  // Enhanced Grid
+  const grid = new THREE.GridHelper(10, 20, 0xa1a1aa, 0xd1d5db);
+  grid.position.y = -0.6; 
+  grid.material.opacity = 0.6;
+  grid.material.transparent = true;
+  scene.add(grid);
 
-  const axes = new THREE.AxesHelper(1.2); scene.add(axes);
+  // BOLD & BRIGHT Axes - 3X THICKER
+  axesHelper = new THREE.AxesHelper(2.5);
+  axesHelper.material.linewidth = 8; // Bold lines
+  scene.add(axesHelper);
+
+  // Custom axis labels
+  const axisLabels = {
+    x: createAxisLabel('X', 2.8, 0, 0, var('--axis-x')),
+    y: createAxisLabel('Y', 0, 2.8, 0, var('--axis-y')),
+    z: createAxisLabel('Z', 0, 0, 2.8, var('--axis-z'))
+  };
+  scene.add(axisLabels.x);
+  scene.add(axisLabels.y);
+  scene.add(axisLabels.z);
+
+  function createAxisLabel(text, x, y, z, color) {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.width = 128; canvas.height = 64;
+    context.fillStyle = color;
+    context.font = 'bold 32px Orbitron';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(text, 64, 32);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+    const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.position.set(x, y, z);
+    sprite.scale.set(1.2, 0.6, 1);
+    return sprite;
+  }
 
   function resize() {
     const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -767,12 +867,26 @@ let cube;
   resize();
   new ResizeObserver(resize).observe(canvas);
 
-  (function loop() { requestAnimationFrame(loop); renderer.render(scene, camera); })();
+  // Enhanced render loop
+  (function loop() { 
+    requestAnimationFrame(loop); 
+    // Rotate axes labels slightly for better visibility
+    if (axesHelper) {
+      axesHelper.rotation.y += 0.002;
+    }
+    renderer.render(scene, camera); 
+  })();
 })();
 
 function rotateCube(p, r, y) {
-  if (!cube) return;
+  if (!cube || !axesHelper) return;
   cube.rotation.set(
+    THREE.MathUtils.degToRad(p),
+    THREE.MathUtils.degToRad(y),
+    THREE.MathUtils.degToRad(r)
+  );
+  // Sync axes rotation
+  axesHelper.rotation.set(
     THREE.MathUtils.degToRad(p),
     THREE.MathUtils.degToRad(y),
     THREE.MathUtils.degToRad(r)
@@ -780,7 +894,7 @@ function rotateCube(p, r, y) {
 }
 
 // ─────────────────────────────────────────────────────────
-// CHART FACTORY - Updated colors for light theme
+// CHART FACTORY
 // ─────────────────────────────────────────────────────────
 function mkChart(id, color, fill = false) {
   return new Chart(document.getElementById(id), {
@@ -794,8 +908,7 @@ function mkChart(id, color, fill = false) {
         tension: .4, 
         fill: fill,
         backgroundColor: fill ? color + '20' : 'transparent',
-        pointRadius: 0,
-        lineTension: 0.4
+        pointRadius: 0
       }]
     },
     options: {
@@ -831,7 +944,7 @@ function pushChart(chart, val) {
 }
 
 // ─────────────────────────────────────────────────────────
-// HELPERS - Updated for light theme
+// HELPERS
 // ─────────────────────────────────────────────────────────
 function setDot(id, state) {
   const el = document.getElementById(id);
@@ -1004,53 +1117,72 @@ setInterval(() => {
 }, 5000);
 
 // ─────────────────────────────────────────────────────────
-// OTA
+// FULL OTA FUNCTIONALITY
 // ─────────────────────────────────────────────────────────
 let otaPollInterval = null;
 
 async function triggerOTA() {
   const btn = document.getElementById('ota-btn');
   const msg = document.getElementById('ota-msg');
+  const progress = document.getElementById('ota-progress-fill');
+  
   btn.disabled = true;
+  btn.textContent = '⏳ SENDING...';
   msg.style.color = 'var(--warn)';
-  msg.textContent = 'SENDING COMMAND...';
+  msg.textContent = 'Sending OTA command to ESP32...';
+  progress.style.width = '20%';
 
   try {
-    const res    = await fetch(API + '/api/trigger-ota', { method: 'POST' });
+    const res = await fetch(API + '/api/trigger-ota', { method: 'POST' });
     const result = await res.json();
-    msg.style.color = 'var(--ok)';
-    msg.textContent = 'COMMAND SENT ✓';
+    msg.style.color = 'var(--accent)';
+    msg.textContent = 'Command sent successfully!';
+    progress.style.width = '40%';
 
+    // Poll OTA status with progress
     if (otaPollInterval) clearInterval(otaPollInterval);
     otaPollInterval = setInterval(async () => {
       try {
-        const sr  = await fetch(API + '/api/ota-status');
-        const st  = await sr.json();
-        const map = {
-          pending:     ['var(--warn)',   'PENDING...'],
-          downloading: ['var(--warn)',   'DOWNLOADING...'],
-          flashing:    ['var(--accent)', 'FLASHING...'],
-          success:     ['var(--ok)',     'SUCCESS — RESTARTING ✓'],
-          error:       ['var(--danger)', 'ERROR ✗'],
-          idle:        [null, null],
+        const sr = await fetch(API + '/api/ota-status');
+        const st = await sr.json();
+        
+        const statusMap = {
+          pending:     { color: 'var(--warn)', text: '⏳ PENDING...', progress: 50 },
+          downloading: { color: 'var(--accent)', text: '📥 DOWNLOADING...', progress: 60 },
+          flashing:    { color: 'var(--accent2)', text: '⚡ FLASHING...', progress: 80 },
+          success:     { color: 'var(--ok)', text: '✅ SUCCESS — RESTARTING', progress: 100 },
+          error:       { color: 'var(--danger)', text: '❌ OTA ERROR', progress: 0 },
+          idle:        { color: null, text: null, progress: 0 }
         };
-        const [col, txt] = map[st.status] || [null, null];
-        if (col) { msg.style.color = col; msg.textContent = txt; }
+        
+        const status = statusMap[st.status] || statusMap.idle;
+        if (status.color) {
+          msg.style.color = status.color;
+          msg.textContent = status.text;
+          progress.style.width = status.progress + '%';
+        }
+        
         if (st.status === 'success' || st.status === 'error' || st.status === 'idle') {
           clearInterval(otaPollInterval);
           setTimeout(() => { 
             btn.disabled = false; 
+            btn.textContent = '▶ DEPLOY OTA';
             msg.textContent = ''; 
+            progress.style.width = '0%';
           }, 5000);
         }
-      } catch {}
-    }, 2000);
+      } catch (e) {
+        console.log('OTA poll error:', e);
+      }
+    }, 1500);
 
-  } catch {
+  } catch (error) {
     msg.style.color = 'var(--danger)';
-    msg.textContent = 'CONNECTION ERROR ✗';
+    msg.textContent = '❌ Connection error';
+    progress.style.width = '0%';
     btn.disabled = false;
-    setTimeout(() => { msg.textContent = ''; }, 3000);
+    btn.textContent = '▶ DEPLOY OTA';
+    setTimeout(() => { msg.textContent = ''; }, 4000);
   }
 }
 
