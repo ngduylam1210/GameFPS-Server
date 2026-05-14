@@ -3,461 +3,959 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Web Dashboard Game Server</title>
+<title>GameFPS — Controller Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js"></script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0d0d0d;--card:#141414;--border:#222;--text:#e0e0e0;--muted:#666;
-      --teal:#03dac6;--purple:#bb86fc;--red:#cf6679;--amber:#ffb74d;--green:#4caf50;--blue:#4fc3f7}
-body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;padding:16px;min-height:100vh}
-h1{text-align:center;font-size:20px;font-weight:500;margin-bottom:4px;letter-spacing:1px}
-.subtitle{text-align:center;font-size:12px;color:var(--muted);margin-bottom:20px}
+/* ── Reset & Root ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-.status-bar{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:20px}
-.status-pill{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);
-             border-radius:20px;padding:5px 12px;font-size:12px}
-.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.dot.green{background:var(--green);box-shadow:0 0 6px var(--green)}
-.dot.red{background:var(--red);box-shadow:0 0 6px var(--red)}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.dot.pulse{animation:pulse 1.2s ease-in-out infinite}
+:root {
+  --bg:        #050508;
+  --surface:   #0b0b10;
+  --panel:     #0f0f16;
+  --border:    #1c1c28;
+  --border-hi: #2a2a40;
+  --text:      #c8cad4;
+  --dim:       #4a4a60;
+  --accent:    #00e5ff;
+  --accent2:   #7c4dff;
+  --warn:      #ff6d00;
+  --danger:    #ff1744;
+  --ok:        #00e676;
+  --pitch:     #00bcd4;
+  --roll:      #00e5ff;
+  --yaw:       #ff9100;
+  --scan:      rgba(0,229,255,.03);
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-hud:  'Orbitron', sans-serif;
+}
 
-.grid{display:grid;gap:14px}
-.grid-2{grid-template-columns:1fr 1fr}
-.grid-3{grid-template-columns:1fr 1fr 1fr}
-@media(max-width:700px){.grid-2,.grid-3{grid-template-columns:1fr}}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 
-.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px}
-.card-title{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:12px}
+/* ── Scan-line overlay ──────────────────────────────────── */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px, var(--scan) 2px, var(--scan) 4px
+  );
+  pointer-events: none;
+  z-index: 999;
+}
 
-.angle-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
-.abox{background:#0a0a0a;border-radius:8px;padding:10px;text-align:center;border:1px solid var(--border)}
-.abox .label{font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:4px}
-.abox .val{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
-.abox.pitch .val{color:var(--blue)}
-.abox.roll  .val{color:var(--teal)}
-.abox.yaw   .val{color:var(--amber)}
+/* ── Header ─────────────────────────────────────────────── */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
 
-#canvas3d{width:100%;height:220px;border-radius:8px;background:#050510;display:block;cursor:grab}
+.hud-title {
+  font-family: var(--font-hud);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--accent);
+  text-shadow: 0 0 20px rgba(0,229,255,.4);
+}
 
-.metric{text-align:center}
-.metric .big{font-size:28px;font-weight:600;margin:6px 0;line-height:1}
-.metric .unit{font-size:11px;color:var(--muted)}
+.status-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
 
-.chart-wrap{position:relative;height:140px}
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  letter-spacing: .5px;
+  color: var(--dim);
+}
 
-.ota-btn{width:100%;padding:12px;background:var(--purple);color:#000;border:none;
-         border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;transition:.2s;letter-spacing:.5px}
-.ota-btn:hover{background:#9b59b6;color:#fff}
-.ota-btn:disabled{opacity:.5;cursor:not-allowed}
-#ota-status{font-size:12px;text-align:center;margin-top:8px;min-height:18px;color:var(--muted)}
+.dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+  transition: background .3s, box-shadow .3s;
+}
+.dot.ok  { background: var(--ok);     box-shadow: 0 0 8px var(--ok); }
+.dot.warn{ background: var(--warn);   box-shadow: 0 0 8px var(--warn); }
+@keyframes throb { 0%,100%{opacity:1} 50%{opacity:.3} }
+.dot.ok { animation: throb 2s ease-in-out infinite; }
+
+.clock {
+  font-family: var(--font-hud);
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 2px;
+}
+
+/* ── Main grid ───────────────────────────────────────────── */
+main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 280px 1fr 280px;
+  grid-template-rows: 1fr 130px;
+  gap: 1px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+/* ── Panel base ─────────────────────────────────────────── */
+.panel {
+  background: var(--panel);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-label {
+  font-family: var(--font-hud);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--dim);
+  padding: 8px 12px 4px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.panel-label span {
+  color: var(--accent);
+  margin-right: 6px;
+}
+
+/* ── LEFT: Pitch/Roll/Yaw charts ────────────────────────── */
+.panel-left {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.angle-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+  padding: 8px 10px;
+  overflow: hidden;
+}
+
+.angle-block {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.angle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 2px;
+}
+
+.angle-name {
+  font-family: var(--font-hud);
+  font-size: 9px;
+  letter-spacing: 2px;
+}
+
+.angle-val {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  transition: color .2s;
+}
+
+.angle-unit { font-size: 9px; color: var(--dim); margin-left: 2px; }
+.angle-chart-wrap { flex: 1; min-height: 0; position: relative; }
+
+.n-pitch .angle-name, .n-pitch .angle-val { color: var(--pitch); }
+.n-roll  .angle-name, .n-roll  .angle-val { color: var(--roll); }
+.n-yaw   .angle-name, .n-yaw   .angle-val { color: var(--yaw); }
+
+.sep { height: 1px; background: var(--border); margin: 6px 0; flex-shrink: 0; }
+
+/* ── CENTER: 3D Model ───────────────────────────────────── */
+.panel-center {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+#canvas3d {
+  flex: 1;
+  width: 100%;
+  display: block;
+  background: transparent;
+}
+
+.angle-readout {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.readout-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.readout-label {
+  font-family: var(--font-hud);
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--dim);
+}
+
+.readout-val {
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── RIGHT: Gyro & Latency ──────────────────────────────── */
+.panel-right {
+  grid-column: 3;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.perf-strip {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  gap: 0;
+  overflow: hidden;
+}
+
+.perf-block {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.perf-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 2px;
+}
+
+.perf-name {
+  font-family: var(--font-hud);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--dim);
+}
+
+.perf-val {
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent2);
+}
+
+.perf-chart-wrap { flex: 1; min-height: 0; position: relative; }
+
+/* Latency color */
+.lat-ok   { color: var(--ok); }
+.lat-warn { color: var(--warn); }
+.lat-bad  { color: var(--danger); }
+
+/* PPS meter */
+.pps-bar-wrap {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.pps-bar {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent2);
+  transition: width .5s, background .3s;
+}
+
+/* ── BOTTOM: Health ─────────────────────────────────────── */
+.panel-bottom {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: row;
+}
+
+.health-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  padding: 8px 12px;
+  gap: 0 12px;
+  align-items: center;
+}
+
+.health-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.h-label {
+  font-family: var(--font-hud);
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--dim);
+  text-transform: uppercase;
+}
+
+.h-val {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  line-height: 1;
+}
+
+.h-unit {
+  font-size: 9px;
+  color: var(--dim);
+}
+
+/* Battery bar */
+.bat-track {
+  height: 5px;
+  background: var(--border);
+  border-radius: 3px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.bat-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width .6s, background .3s;
+}
+
+/* RSSI signal bars */
+.rssi-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+  margin-top: 4px;
+}
+
+.rssi-bar {
+  width: 5px;
+  border-radius: 1px;
+  background: var(--border);
+  transition: background .3s;
+}
+
+/* Uptime glow */
+#v-uptime { color: var(--accent); text-shadow: 0 0 12px rgba(0,229,255,.3); }
+
+/* MQTT badge */
+.mqtt-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--border-hi);
+  font-size: 9px;
+  letter-spacing: 1px;
+  font-family: var(--font-hud);
+  margin-top: 6px;
+  width: fit-content;
+}
+
+.mqtt-badge.ok   { border-color: var(--ok);   color: var(--ok); }
+.mqtt-badge.fail { border-color: var(--danger);color: var(--danger); }
+
+/* OTA section in bottom-right */
+.ota-zone {
+  width: 200px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+}
+
+.ota-btn {
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  border: 1px solid var(--accent2);
+  color: var(--accent2);
+  font-family: var(--font-hud);
+  font-size: 10px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background .2s, box-shadow .2s;
+}
+
+.ota-btn:hover:not(:disabled) {
+  background: rgba(124,77,255,.15);
+  box-shadow: 0 0 12px rgba(124,77,255,.3);
+}
+
+.ota-btn:disabled { opacity: .4; cursor: not-allowed; }
+#ota-msg { font-size: 9px; text-align: center; color: var(--dim); min-height: 12px; }
+
+/* ── Corner decoration ──────────────────────────────────── */
+.corner {
+  position: absolute;
+  width: 10px; height: 10px;
+  border-color: var(--accent2);
+  border-style: solid;
+  opacity: .5;
+}
+.corner.tl { top: 4px; left: 4px;  border-width: 1px 0 0 1px; }
+.corner.br { bottom: 4px; right: 4px; border-width: 0 1px 1px 0; }
 </style>
 </head>
 <body>
 
-<h1>Web Dashboard Game Server - Controller</h1>
-<p class="subtitle">Real-time 3D + Angles + Health — Pro Dashboard</p>
+<!-- ── HEADER ── -->
+<header>
+  <div class="hud-title">GAMEFPS CONTROLLER MONITOR</div>
+  <div class="status-row">
+    <div class="pill"><div class="dot" id="d-server"></div><span id="t-server">SERVER</span></div>
+    <div class="pill"><div class="dot" id="d-mqtt"></div><span id="t-mqtt">MQTT</span></div>
+    <div class="pill"><div class="dot" id="d-esp"></div><span id="t-esp">ESP32</span></div>
+  </div>
+  <div class="clock" id="clock">--:--:--</div>
+</header>
 
-<div class="status-bar">
-  <div class="status-pill"><div class="dot green pulse" id="sd-server"></div><span id="st-server">Server</span></div>
-  <div class="status-pill"><div class="dot red" id="sd-mqtt"></div><span id="st-mqtt">MQTT</span></div>
-  <div class="status-pill"><div class="dot red" id="sd-esp"></div><span id="st-esp">ESP32</span></div>
-  <div class="status-pill"><i></i><span id="st-fps">-- pkt/s</span></div>
-  <div class="status-pill"><i></i><span id="st-latency">-- ms</span></div>
-</div>
+<!-- ── MAIN GRID ── -->
+<main>
 
-<div class="grid grid-2">
-  <div class="card">
-    <div class="card-title">3D MODEL</div>
+  <!-- LEFT: Pitch / Roll / Yaw Charts -->
+  <div class="panel panel-left">
+    <div class="corner tl"></div>
+    <div class="panel-label"><span>◈</span>ORIENTATION TELEMETRY</div>
+    <div class="angle-strip">
+
+      <div class="angle-block n-pitch">
+        <div class="angle-header">
+          <span class="angle-name">PITCH</span>
+          <div><span class="angle-val" id="v-pitch">—</span><span class="angle-unit">°</span></div>
+        </div>
+        <div class="angle-chart-wrap"><canvas id="c-pitch"></canvas></div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="angle-block n-roll">
+        <div class="angle-header">
+          <span class="angle-name">ROLL</span>
+          <div><span class="angle-val" id="v-roll">—</span><span class="angle-unit">°</span></div>
+        </div>
+        <div class="angle-chart-wrap"><canvas id="c-roll"></canvas></div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="angle-block n-yaw">
+        <div class="angle-header">
+          <span class="angle-name">YAW</span>
+          <div><span class="angle-val" id="v-yaw">—</span><span class="angle-unit">°</span></div>
+        </div>
+        <div class="angle-chart-wrap"><canvas id="c-yaw"></canvas></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CENTER: 3D Model -->
+  <div class="panel panel-center">
+    <div class="panel-label"><span>◈</span>3D SPATIAL MODEL — REAL-TIME SYNC</div>
     <canvas id="canvas3d"></canvas>
-    <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px">
-      Pitch/Roll/Yaw từ ESP32 
-    </p>
-  </div>
-
-  <div class="card">
-    <div class="card-title">Góc cảm biến — Real-time</div>
-    <div class="angle-row">
-      <div class="abox pitch"><div class="label">PITCH</div><div class="val" id="v-pitch">—</div></div>
-      <div class="abox roll"><div class="label">ROLL</div><div class="val" id="v-roll">—</div></div>
-      <div class="abox yaw"><div class="label">YAW</div><div class="val" id="v-yaw">—</div></div>
-    </div>
-    <div class="card-title" style="margin-top:14px">Yaw Drift Monitor</div>
-    <div class="chart-wrap"><canvas id="drift-chart"></canvas></div>
-  </div>
-</div>
-
-<div class="card" style="margin-bottom:14px">
-  <div class="card-title">Biểu đồ góc — 60 mẫu gần nhất</div>
-  <div class="chart-wrap" style="height:160px"><canvas id="angle-chart"></canvas></div>
-</div>
-
-<div class="grid grid-3">
-  <div class="card">
-    <div class="card-title">Thời gian hoạt động</div>
-    <div class="metric">
-      <div class="big" id="v-uptime" style="color:var(--teal)">--:--:--</div>
-      <div class="unit">HH:MM:SS</div>
+    <div class="angle-readout">
+      <div class="readout-item">
+        <span class="readout-label">PITCH</span>
+        <span class="readout-val" id="r-pitch" style="color:var(--pitch)">—.—°</span>
+      </div>
+      <div class="readout-item">
+        <span class="readout-label">ROLL</span>
+        <span class="readout-val" id="r-roll" style="color:var(--roll)">—.—°</span>
+      </div>
+      <div class="readout-item">
+        <span class="readout-label">YAW</span>
+        <span class="readout-val" id="r-yaw" style="color:var(--yaw)">—.—°</span>
+      </div>
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-title">Độ trễ</div>
-    <div class="metric">
-      <div class="big" id="v-latency" style="color:var(--teal)">— ms</div>
-      <div class="unit">ESP32 → Server → Web</div>
+  <!-- RIGHT: Gyro drift + Latency + PPS -->
+  <div class="panel panel-right">
+    <div class="corner br"></div>
+    <div class="panel-label"><span>◈</span>PERFORMANCE METRICS</div>
+    <div class="perf-strip">
+
+      <div class="perf-block">
+        <div class="perf-header">
+          <span class="perf-name">YAW DRIFT MONITOR</span>
+        </div>
+        <div class="perf-chart-wrap"><canvas id="c-drift"></canvas></div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="perf-block" style="flex:0;min-height:auto;padding-bottom:6px">
+        <div class="perf-header">
+          <span class="perf-name">LATENCY</span>
+          <span class="perf-val" id="v-lat" style="font-size:20px">— ms</span>
+        </div>
+        <div class="perf-header" style="margin-top:6px">
+          <span class="perf-name">PACKET RATE</span>
+          <span class="perf-val" id="v-pps" style="font-size:20px">— p/s</span>
+        </div>
+        <div class="pps-bar-wrap"><div class="pps-bar" id="pps-bar" style="width:0%"></div></div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="perf-block">
+        <div class="perf-header">
+          <span class="perf-name">PITCH HISTORY</span>
+        </div>
+        <div class="perf-chart-wrap"><canvas id="c-gyro"></canvas></div>
+      </div>
+
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-title">Tốc độ gói tin</div>
-    <div class="metric">
-      <div class="big" id="v-pps" style="color:var(--purple)">—</div>
-      <div class="unit">packets/giây</div>
-    </div>
-    <div style="font-size:11px;color:var(--muted);margin-top:8px">
-      Target: <span style="color:var(--teal)">≥ 20 pkt/s</span>
-    </div>
-  </div>
-</div>
+  <!-- BOTTOM: Health -->
+  <div class="panel panel-bottom">
+    <div class="health-grid">
 
-<div class="grid grid-2">
-  <div class="card">
-    <div class="card-title">Nhiệt độ lõi ESP32</div>
-    <div class="metric">
-      <div class="big" id="v-temp" style="color:var(--amber)">—°C</div>
-      <div class="unit" id="v-temp-status">Internal sensor</div>
+      <div class="health-item">
+        <span class="h-label">UPTIME</span>
+        <span class="h-val" id="v-uptime">--:--:--</span>
+        <span class="h-unit">HH:MM:SS</span>
+      </div>
+
+      <div class="health-item">
+        <span class="h-label">CORE TEMP</span>
+        <span class="h-val" id="v-temp">—°C</span>
+        <span class="h-unit" id="v-temp-s" style="color:var(--dim)">ESP32 Internal</span>
+      </div>
+
+      <div class="health-item">
+        <span class="h-label">BATTERY</span>
+        <span class="h-val" id="v-volt">—.— V</span>
+        <div class="bat-track"><div class="bat-fill" id="bat-f"></div></div>
+      </div>
+
+      <div class="health-item">
+        <span class="h-label">WIFI RSSI</span>
+        <span class="h-val" id="v-rssi">— dBm</span>
+        <div class="rssi-bars" id="rssi-b">
+          <div class="rssi-bar" style="height:3px"  id="rb1"></div>
+          <div class="rssi-bar" style="height:5px"  id="rb2"></div>
+          <div class="rssi-bar" style="height:8px"  id="rb3"></div>
+          <div class="rssi-bar" style="height:11px" id="rb4"></div>
+          <div class="rssi-bar" style="height:14px" id="rb5"></div>
+        </div>
+      </div>
+
+      <div class="health-item">
+        <span class="h-label">FIRMWARE</span>
+        <span class="h-val" id="v-fw" style="font-size:14px;color:var(--accent2)">v —</span>
+        <div class="mqtt-badge fail" id="mqtt-badge">
+          <div class="dot" id="d-mqtt2" style="width:5px;height:5px"></div>
+          <span id="t-mqtt2">HIVEMQ</span>
+        </div>
+      </div>
+
+      <div class="health-item">
+        <span class="h-label">ESP32 STATUS</span>
+        <span class="h-val" id="v-esp-s" style="font-size:11px;color:var(--dim);margin-top:4px">OFFLINE</span>
+        <span class="h-unit" id="v-reset">Reset count: —</span>
+      </div>
+
     </div>
-    <div class="chart-wrap"><canvas id="temp-chart"></canvas></div>
+
+    <!-- OTA -->
+    <div class="ota-zone">
+      <span style="font-family:var(--font-hud);font-size:9px;letter-spacing:2px;color:var(--dim)">REMOTE UPDATE</span>
+      <button class="ota-btn" id="ota-btn" onclick="triggerOTA()">▶ DEPLOY OTA</button>
+      <div id="ota-msg"></div>
+    </div>
   </div>
 
-  <div class="card">
-    <div class="card-title">OTA Updates</div>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
-      Gửi <code style="background:#0a0a0a;padding:2px 6px;border-radius:4px">START_OTA</code><br>
-      ESP32 tự tải firmware → Restart
-    </p>
-    <button class="ota-btn" onclick="triggerOTA()" id="ota-btn">Phát Lệnh OTA</button>
-    <p id="ota-status"></p>
-  </div>
-</div>
+</main>
 
 <script>
 // ─────────────────────────────────────────────────────────
-// BIẾN TOÀN CỤC CHUYÊN SÂU
+// CONFIG
 // ─────────────────────────────────────────────────────────
 const API = "https://gamefps-server.onrender.com";
-let pktCount = 0, lastPktCount = 0, lastPktTime = Date.now();
-
-// Biến canh gác & tính toán thời gian thực
-let lastDataTime = Date.now();
-let lastSeenTs = null;
-let baseUptime = 0; 
-let needUptimeReset = true; 
+const MAX = 60;
 
 // ─────────────────────────────────────────────────────────
-// THREE.JS 3D 
+// CLOCK
 // ─────────────────────────────────────────────────────────
-let renderer, scene, camera, cube;
-(function init3D() {
-  const canvas = document.getElementById('canvas3d');
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  renderer.setSize(canvas.clientWidth, 220);
-  renderer.setPixelRatio(window.devicePixelRatio);
+function tickClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('vi-VN', { hour12: false });
+}
+tickClock();
+setInterval(tickClock, 1000);
 
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(45, canvas.clientWidth/220, 0.1, 100);
-  camera.position.set(2.5, 1.8, 3);
+// ─────────────────────────────────────────────────────────
+// THREE.JS 3D
+// ─────────────────────────────────────────────────────────
+let cube;
+(function() {
+  const canvas   = document.getElementById('canvas3d');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  const scene    = new THREE.Scene();
+  const camera   = new THREE.PerspectiveCamera(40, 2, 0.1, 100);
+  camera.position.set(3, 1.8, 3.5);
   camera.lookAt(0, 0, 0);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-  const dir = new THREE.DirectionalLight(0xffffff, 1);
-  dir.position.set(3, 4, 2); scene.add(dir);
-  const pt = new THREE.PointLight(0xbb86fc, 1.5, 10);
-  pt.position.set(-2, 2, 2); scene.add(pt);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+  const dl = new THREE.DirectionalLight(0x00e5ff, 1.2);
+  dl.position.set(3, 4, 2); scene.add(dl);
+  const pl = new THREE.PointLight(0x7c4dff, 2, 8);
+  pl.position.set(-2, 1, 2); scene.add(pl);
 
-  const geo = new THREE.BoxGeometry(2.4, 0.6, 1.2);
+  const geo  = new THREE.BoxGeometry(2.6, 0.55, 1.1);
   const mats = [
-    new THREE.MeshPhongMaterial({ color: 0x1a1a2e }),
-    new THREE.MeshPhongMaterial({ color: 0x1a1a2e }),
-    new THREE.MeshPhongMaterial({ color: 0x16213e }),
-    new THREE.MeshPhongMaterial({ color: 0x16213e }),
-    new THREE.MeshPhongMaterial({ color: 0xbb86fc, emissive: 0x330044 }),
-    new THREE.MeshPhongMaterial({ color: 0x0f3460 }),
+    new THREE.MeshPhongMaterial({ color: 0x0a0a14 }),
+    new THREE.MeshPhongMaterial({ color: 0x0a0a14 }),
+    new THREE.MeshPhongMaterial({ color: 0x080810 }),
+    new THREE.MeshPhongMaterial({ color: 0x080810 }),
+    new THREE.MeshPhongMaterial({ color: 0x1a0a2e, emissive: 0x0d0518 }),
+    new THREE.MeshPhongMaterial({ color: 0x0d1a2e }),
   ];
   cube = new THREE.Mesh(geo, mats);
   scene.add(cube);
 
-  const grid = new THREE.GridHelper(6, 8, 0x222233, 0x111122);
-  grid.position.y = -0.5; scene.add(grid);
-  scene.add(new THREE.AxesHelper(1.5));
+  const grid = new THREE.GridHelper(8, 12, 0x0a1520, 0x080c14);
+  grid.position.y = -0.4; scene.add(grid);
 
-  function animate() {
-    requestAnimationFrame(animate);
-    renderer.render(scene, camera);
-  }
-  animate();
+  const axes = new THREE.AxesHelper(1.2); scene.add(axes);
 
-  window.addEventListener('resize', () => {
-    renderer.setSize(canvas.clientWidth, 220);
-    camera.aspect = canvas.clientWidth / 220;
+  function resize() {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
     camera.updateProjectionMatrix();
-  });
+  }
+  resize();
+  new ResizeObserver(resize).observe(canvas);
+
+  (function loop() { requestAnimationFrame(loop); renderer.render(scene, camera); })();
 })();
 
-function updateCube(pitch, roll, yaw) {
+function rotateCube(p, r, y) {
   if (!cube) return;
-  const p = THREE.MathUtils.degToRad(pitch);
-  const r = THREE.MathUtils.degToRad(roll);
-  const y = THREE.MathUtils.degToRad(yaw);
-  cube.rotation.set(p, y, r);
+  cube.rotation.set(
+    THREE.MathUtils.degToRad(p),
+    THREE.MathUtils.degToRad(y),
+    THREE.MathUtils.degToRad(r)
+  );
 }
 
 // ─────────────────────────────────────────────────────────
-// CHARTS
+// CHART FACTORY
 // ─────────────────────────────────────────────────────────
-const MAX_SAMPLES = 60;
-let labels = [], dPitch = [], dRoll = [], dYaw = [], dDrift = [], dTemp = [];
-
-const angleChart = new Chart(document.getElementById('angle-chart'), {
-  type: 'line',
-  data: {
-    labels,
-    datasets: [
-      { label:'Pitch', data:dPitch, borderColor:'#4fc3f7', tension:.3, fill:false, pointRadius:0, borderWidth:1.5 },
-      { label:'Roll',  data:dRoll,  borderColor:'#03dac6', tension:.3, fill:false, pointRadius:0, borderWidth:1.5 },
-      { label:'Yaw',   data:dYaw,   borderColor:'#ffb74d', tension:.3, fill:false, pointRadius:0, borderWidth:1.5 },
-    ]
-  },
-  options: {
-    animation:false, responsive:true, maintainAspectRatio:false,
-    plugins:{ legend:{ labels:{ color:'#888', boxWidth:10, font:{ size:11 } } } },
-    scales:{
-      x:{ display:false },
-      y:{ grid:{ color:'#1a1a1a' }, ticks:{ color:'#555', font:{ size:10 } }, border:{ color:'#222' } }
+function mkChart(id, color, fill = false) {
+  return new Chart(document.getElementById(id), {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{ data: [], borderColor: color, borderWidth: 1.2,
+        tension: .35, fill: fill,
+        backgroundColor: fill ? color.replace(')', ',.08)').replace('rgb', 'rgba') : undefined,
+        pointRadius: 0 }]
+    },
+    options: {
+      animation: false, responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: { display: false }
+      }
     }
-  }
-});
+  });
+}
 
-const driftChart = new Chart(document.getElementById('drift-chart'), {
-  type:'line',
-  data:{ labels:[], datasets:[
-    { label:'Yaw drift', data:dDrift, borderColor:'#ffb74d', tension:.3, fill:true,
-      backgroundColor:'rgba(255,183,77,.08)', pointRadius:0, borderWidth:1 }
-  ]},
-  options:{
-    animation:false, responsive:true, maintainAspectRatio:false,
-    plugins:{ legend:{ display:false } },
-    scales:{ x:{ display:false }, y:{ display:false } }
-  }
-});
+const charts = {
+  pitch: mkChart('c-pitch', '#00bcd4'),
+  roll:  mkChart('c-roll',  '#00e5ff'),
+  yaw:   mkChart('c-yaw',   '#ff9100'),
+  drift: mkChart('c-drift', '#ff9100', true),
+  gyro:  mkChart('c-gyro',  '#7c4dff'),
+};
 
-const tempChart = new Chart(document.getElementById('temp-chart'), {
-  type:'line',
-  data:{ labels:[], datasets:[
-    { label:'Temp', data:dTemp, borderColor:'#cf6679', tension:.3, fill:true,
-      backgroundColor:'rgba(207,102,121,.1)', pointRadius:0, borderWidth:1 }
-  ]},
-  options:{
-    animation:false, responsive:true, maintainAspectRatio:false,
-    plugins:{ legend:{ display:false } },
-    scales:{ x:{ display:false }, y:{ display:false } }
-  }
-});
-
-function pushData(arr, val) {
-  arr.push(val);
-  if (arr.length > MAX_SAMPLES) arr.shift();
+function pushChart(chart, val) {
+  const d = chart.data.datasets[0].data;
+  const l = chart.data.labels;
+  d.push(val); l.push('');
+  if (d.length > MAX) { d.shift(); l.shift(); }
+  chart.update('none');
 }
 
 // ─────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────
-function setDot(id, ok) {
+function setDot(id, state) {
+  // state: 'ok' | 'warn' | 'off'
   const el = document.getElementById(id);
-  el.classList.toggle('green', ok);
-  el.classList.toggle('red', !ok);
-  el.classList.toggle('pulse', ok);
+  el.className = 'dot' + (state === 'ok' ? ' ok' : state === 'warn' ? ' warn' : '');
 }
 
-function formatUptime(sec) {
-  const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
-  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+function fmtUptime(s) {
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), ss = s%60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
 }
 
-function tempStatus(t) {
-  if (t < 65) return { text:'Bình thường', color:'#4caf50' }; // Tinh chỉnh cho ESP32
-  if (t < 80) return { text:'Chịu tải cao', color:'#ffb74d' };
-  return { text:'⚠ Quá nhiệt!', color:'#cf6679' };
+function setRSSI(v) {
+  const bars = [1,2,3,4,5].map(i => document.getElementById('rb'+i));
+  const lvl  = v >= -55 ? 5 : v >= -65 ? 4 : v >= -75 ? 3 : v >= -85 ? 2 : 1;
+  const col  = v >= -65 ? 'var(--ok)' : v >= -75 ? 'var(--warn)' : 'var(--danger)';
+  bars.forEach((b, i) => b.style.background = i < lvl ? col : 'var(--border)');
+  const el = document.getElementById('v-rssi');
+  el.textContent = v + ' dBm';
+  el.style.color = col;
+}
+
+function setBat(volt) {
+  const pct = Math.min(100, Math.max(0, ((volt-3.0)/(4.2-3.0))*100));
+  const col = pct > 50 ? 'var(--ok)' : pct > 20 ? 'var(--warn)' : 'var(--danger)';
+  document.getElementById('v-volt').textContent = volt.toFixed(2) + ' V';
+  document.getElementById('v-volt').style.color = col;
+  const f = document.getElementById('bat-f');
+  f.style.width = pct + '%';
+  f.style.background = col;
 }
 
 // ─────────────────────────────────────────────────────────
-// FETCH SENSOR (Góc + 3D)
+// OFFLINE RESET
 // ─────────────────────────────────────────────────────────
+const DATA_TIMEOUT = 5000;
+let lastDataTime = 0, espOnline = false;
+
+function resetDisplay() {
+  if (!espOnline) return;
+  espOnline = false;
+  ['v-pitch','v-roll','v-yaw'].forEach(id => document.getElementById(id).textContent = '—');
+  ['r-pitch','r-roll','r-yaw'].forEach(id => document.getElementById(id).textContent = '—.—°');
+  document.getElementById('v-lat').textContent = '— ms';
+  document.getElementById('v-pps').textContent = '— p/s';
+  document.getElementById('pps-bar').style.width = '0%';
+  document.getElementById('v-esp-s').textContent = 'OFFLINE';
+  document.getElementById('v-esp-s').style.color = 'var(--danger)';
+  setDot('d-esp', 'off');
+  if (cube) cube.rotation.set(0,0,0);
+}
+
+// ─────────────────────────────────────────────────────────
+// FETCH SENSOR
+// ─────────────────────────────────────────────────────────
+let lastTS = null, pktCount = 0, lastPktC = 0, lastPktT = Date.now();
+
 async function fetchSensor() {
   const t0 = Date.now();
   try {
-    const res = await fetch(`${API}/api/latest`);
+    const res = await fetch(API + '/api/latest');
     const d   = await res.json();
-    const latency = Date.now() - t0;
+    const lat = Date.now() - t0;
 
-    if (!d || d.pitch === undefined) return;
+    setDot('d-server', 'ok');
+    document.getElementById('t-server').textContent = 'SERVER';
 
-    // CHỈ CẬP NHẬT KHI CÓ GÓI TIN MỚI TỪ DATABASE
-    const isNew = d.timestamp && d.timestamp !== lastSeenTs;
-    if (isNew) {
-      lastSeenTs = d.timestamp;
-      lastDataTime = Date.now(); 
-      pktCount++;
-    }
+    if (!d || d.pitch === undefined) { resetDisplay(); return; }
 
-    // NẾU MẠCH ĐANG ONLINE (Không bị Watchdog chặn)
-    if (Date.now() - lastDataTime <= 3000) {
-      document.getElementById('v-pitch').textContent = d.pitch.toFixed(1);
-      document.getElementById('v-roll').textContent  = d.roll.toFixed(1);
-      document.getElementById('v-yaw').textContent   = d.yaw.toFixed(1);
+    // Kiểm tra data freshness
+    const fresh = d.timestamp && (Date.now() - new Date(d.timestamp).getTime()) < DATA_TIMEOUT;
+    if (!fresh) { resetDisplay(); return; }
 
-      updateCube(d.pitch, d.roll, d.yaw);
+    // Online
+    espOnline = true;
+    lastDataTime = Date.now();
+    if (d.timestamp !== lastTS) { lastTS = d.timestamp; pktCount++; }
 
-      const ts = new Date().toLocaleTimeString('vi-VN', {hour12:false}).slice(-8);
-      pushData(labels, ts);
-      pushData(dPitch, d.pitch);
-      pushData(dRoll,  d.roll);
-      pushData(dYaw,   d.yaw);
-      pushData(dDrift, d.yaw);
+    // Cập nhật số
+    const P = d.pitch, R = d.roll, Y = d.yaw;
+    document.getElementById('v-pitch').textContent = P.toFixed(1);
+    document.getElementById('v-roll').textContent  = R.toFixed(1);
+    document.getElementById('v-yaw').textContent   = Y.toFixed(1);
+    document.getElementById('r-pitch').textContent = P.toFixed(1) + '°';
+    document.getElementById('r-roll').textContent  = R.toFixed(1) + '°';
+    document.getElementById('r-yaw').textContent   = Y.toFixed(1) + '°';
 
-      angleChart.update('none');
-      driftChart.data.labels = labels.slice(-10);
-      driftChart.update('none');
+    // 3D
+    rotateCube(P, R, Y);
 
-      setDot('sd-esp', true);
-      document.getElementById('st-esp').textContent = 'ESP32 Online';
-      setDot('sd-server', true);
-      document.getElementById('st-server').textContent = 'Server Online';
-      
-      document.getElementById('v-latency').textContent = latency + ' ms';
-      document.getElementById('st-latency').textContent = latency + ' ms';
-      document.getElementById('v-latency').style.color = 
-        latency < 50 ? '#4caf50' : latency < 100 ? '#03dac6' : '#ffb74d';
-    }
+    // Charts
+    pushChart(charts.pitch, P);
+    pushChart(charts.roll,  R);
+    pushChart(charts.yaw,   Y);
+    pushChart(charts.drift, Y);
+    pushChart(charts.gyro,  P);
 
-  } catch(e) {
-    setDot('sd-server', false);
-    document.getElementById('st-server').textContent = 'Server Offline';
+    // Latency
+    const lc = lat < 80 ? 'lat-ok' : lat < 200 ? 'lat-warn' : 'lat-bad';
+    const lEl = document.getElementById('v-lat');
+    lEl.textContent  = lat + ' ms';
+    lEl.className    = 'perf-val ' + lc;
+
+    // Status
+    setDot('d-esp', 'ok');
+    document.getElementById('t-esp').textContent = 'ESP32';
+    document.getElementById('v-esp-s').textContent = 'ONLINE';
+    document.getElementById('v-esp-s').style.color = 'var(--ok)';
+
+  } catch {
+    setDot('d-server', 'off');
+    document.getElementById('t-server').textContent = 'SERVER ✗';
+    resetDisplay();
   }
 }
 
 // ─────────────────────────────────────────────────────────
-// FETCH HEALTH (Uptime + Temp + MQTT)
+// FETCH HEALTH
 // ─────────────────────────────────────────────────────────
 async function fetchHealth() {
   try {
-    const res = await fetch(`${API}/api/health`);
+    const res = await fetch(API + '/api/health');
     const h   = await res.json();
-    if (!h) return;
+    if (!h || !espOnline) return;
 
-    // THỜI GIAN SỬ DỤNG
-    if (h.uptime !== undefined && Date.now() - lastDataTime <= 2000) {
-      if (needUptimeReset) {
-        baseUptime = h.uptime; // Lấy điểm neo mới
-        needUptimeReset = false;
-      }
-      let sessionUptime = h.uptime - baseUptime;
-      if (sessionUptime < 0) { // Đề phòng trường hợp ESP32 bị sập nguồn reset số
-        baseUptime = h.uptime;
-        sessionUptime = 0;
-      }
-      document.getElementById('v-uptime').textContent = formatUptime(sessionUptime);
+    if (h.uptime      !== undefined) document.getElementById('v-uptime').textContent = fmtUptime(h.uptime);
+    if (h.voltage     !== undefined) setBat(h.voltage);
+    if (h.rssi        !== undefined) setRSSI(h.rssi);
+    if (h.version)                   document.getElementById('v-fw').textContent = 'v' + h.version;
+    if (h.resetCount  !== undefined) document.getElementById('v-reset').textContent = 'Reset: ' + h.resetCount;
+
+    if (h.temperature !== undefined) {
+      const t  = h.temperature;
+      const col = t < 65 ? 'var(--ok)' : t < 80 ? 'var(--warn)' : 'var(--danger)';
+      const lbl = t < 65 ? 'NORMAL' : t < 80 ? 'HIGH LOAD' : '⚠ OVERHEAT';
+      document.getElementById('v-temp').textContent  = t.toFixed(1) + '°C';
+      document.getElementById('v-temp').style.color  = col;
+      document.getElementById('v-temp-s').textContent = lbl;
+      document.getElementById('v-temp-s').style.color = col;
     }
 
-    // NHIỆT ĐỘ
-    if (h.temperature !== undefined && Date.now() - lastDataTime <= 3000) {
-      const t = h.temperature;
-      const st = tempStatus(t);
-      document.getElementById('v-temp').textContent = t.toFixed(1) + '°C';
-      document.getElementById('v-temp').style.color = st.color;
-      document.getElementById('v-temp-status').textContent = st.text;
-      document.getElementById('v-temp-status').style.color = st.color;
-      
-      pushData(dTemp, t);
-      tempChart.data.labels = dTemp.map((_,i) => i);
-      tempChart.update('none');
-    }
+    const mqOk = h.mqttConnected === true;
+    setDot('d-mqtt',  mqOk ? 'ok' : 'off');
+    setDot('d-mqtt2', mqOk ? 'ok' : 'off');
+    const mb = document.getElementById('mqtt-badge');
+    mb.className = 'mqtt-badge ' + (mqOk ? 'ok' : 'fail');
+    document.getElementById('t-mqtt').textContent  = mqOk ? 'MQTT' : 'MQTT';
+    document.getElementById('t-mqtt2').textContent = mqOk ? 'HIVEMQ  CONNECTED' : 'HIVEMQ  OFFLINE';
 
-    const mqttOk = h.mqttConnected === true;
-    setDot('sd-mqtt', mqttOk);
-    document.getElementById('st-mqtt').textContent = mqttOk ? 'MQTT OK' : 'MQTT Offline';
-
-  } catch(e) { /* ignore */ }
+  } catch {}
 }
 
 // ─────────────────────────────────────────────────────────
-// BỘ ĐẾM (WATCHDOG) + PPS
+// PPS COUNTER
 // ─────────────────────────────────────────────────────────
 setInterval(() => {
   const now  = Date.now();
-  
-  // Tính Tốc độ gói tin
-  const secs = (now - lastPktTime) / 1000;
-  const pps  = (pktCount - lastPktCount) / secs;
-  lastPktCount = pktCount;
-  lastPktTime  = now;
-  
-  // Xử lý Giao diện khi MẤT TÍN HIỆU
-  if (now - lastDataTime > 3000) {
-    needUptimeReset = true; // Yêu cầu đếm lại từ đầu khi có mạng
+  const secs = (now - lastPktT) / 1000;
+  const pps  = (pktCount - lastPktC) / secs;
+  lastPktC   = pktCount;
+  lastPktT   = now;
 
-    setDot('sd-esp', false);
-    document.getElementById('st-esp').textContent = 'ESP32 Offline (Mất tín hiệu)';
-    
-    document.getElementById('v-pitch').textContent = "--";
-    document.getElementById('v-roll').textContent  = "--";
-    document.getElementById('v-yaw').textContent   = "--";
-    
-    document.getElementById('v-uptime').textContent = "--:--:--";
-    document.getElementById('v-temp').textContent = "--°C";
-    document.getElementById('v-temp-status').textContent = "Đang chờ dữ liệu...";
-    document.getElementById('v-temp-status').style.color = "var(--muted)";
-    
-    document.getElementById('v-latency').textContent = "-- ms";
-    document.getElementById('st-latency').textContent = "-- ms";
-    document.getElementById('v-pps').textContent = "0.0";
-    document.getElementById('st-fps').textContent = "0 pkt/s";
-    document.getElementById('v-pps').style.color = '#cf6679';
-  } else {
-    // Chỉ cập nhật PPS khi mạng bình thường
-    document.getElementById('v-pps').textContent = pps.toFixed(1);
-    document.getElementById('st-fps').textContent = pps.toFixed(1) + ' pkt/s';
-    document.getElementById('v-pps').style.color = 
-      pps >= 20 ? '#4caf50' : pps >= 10 ? '#ffb74d' : '#cf6679';
-  }
-}, 1000);
+  const display = espOnline ? pps : 0;
+  const col = display >= 20 ? 'var(--ok)' : display >= 10 ? 'var(--warn)' : 'var(--danger)';
+  document.getElementById('v-pps').textContent  = display.toFixed(1) + ' p/s';
+  document.getElementById('v-pps').style.color  = col;
+  document.getElementById('pps-bar').style.width = Math.min(100, (display/30)*100) + '%';
+  document.getElementById('pps-bar').style.background = col;
+
+  if (!espOnline) resetDisplay();
+}, 5000);
 
 // ─────────────────────────────────────────────────────────
 // OTA
 // ─────────────────────────────────────────────────────────
+let otaPollInterval = null;
+
 async function triggerOTA() {
   const btn = document.getElementById('ota-btn');
-  const el  = document.getElementById('ota-status');
+  const msg = document.getElementById('ota-msg');
   btn.disabled = true;
-  el.style.color = '#ffb74d';
-  el.textContent = 'Đang phát lệnh OTA qua MQTT...';
-  
+  msg.style.color = 'var(--warn)';
+  msg.textContent = 'SENDING COMMAND...';
+
   try {
-    const res    = await fetch(`${API}/api/trigger-ota`, { method:'POST' });
+    const res    = await fetch(API + '/api/trigger-ota', { method: 'POST' });
     const result = await res.json();
-    el.style.color = '#4caf50';
-    el.textContent = ' OKE ' + result.message;
+    msg.style.color = 'var(--ok)';
+    msg.textContent = 'COMMAND SENT';
+
+    // Poll trạng thái OTA
+    if (otaPollInterval) clearInterval(otaPollInterval);
+    otaPollInterval = setInterval(async () => {
+      try {
+        const sr  = await fetch(API + '/api/ota-status');
+        const st  = await sr.json();
+        const map = {
+          pending:     ['var(--warn)',   'PENDING...'],
+          downloading: ['var(--warn)',   'DOWNLOADING...'],
+          flashing:    ['var(--accent)', 'FLASHING...'],
+          success:     ['var(--ok)',     'SUCCESS — RESTARTING'],
+          error:       ['var(--danger)', 'ERROR'],
+          idle:        [null, null],
+        };
+        const [col, txt] = map[st.status] || [null, null];
+        if (col) { msg.style.color = col; msg.textContent = txt; }
+        if (st.status === 'success' || st.status === 'error' || st.status === 'idle') {
+          clearInterval(otaPollInterval);
+          setTimeout(() => { btn.disabled = false; msg.textContent = ''; }, 5000);
+        }
+      } catch {}
+    }, 2000);
+
   } catch {
-    el.style.color = '#cf6679';
-    el.textContent = 'Lỗi kết nối Server!';
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'CONNECTION ERROR';
+    btn.disabled = false;
   }
-  
-  setTimeout(() => { 
-    btn.disabled = false; 
-    el.textContent = ''; 
-  }, 10000);
 }
 
 // ─────────────────────────────────────────────────────────
