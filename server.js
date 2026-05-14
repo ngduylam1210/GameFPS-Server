@@ -69,6 +69,9 @@ const SensorSchema = new mongoose.Schema({
   pitch:     { type: Number, default: 0 },
   roll:      { type: Number, default: 0 },
   yaw:       { type: Number, default: 0 },
+  gx:        { type: Number, default: 0 }, // Đã thêm
+  gy:        { type: Number, default: 0 }, // Đã thêm
+  gz:        { type: Number, default: 0 }, // Đã thêm
   buttons:   { type: Number, default: 0 },
   mode:      { type: Number, default: 0 },
 });
@@ -147,6 +150,9 @@ mqttClient.on('message', async (topic, message) => {
           pitch:   parseFloat(data.pitch)   || 0,
           roll:    parseFloat(data.roll)    || 0,
           yaw:     parseFloat(data.yaw)     || 0,
+          gx:      parseFloat(data.gx)      || 0, // Đã thêm
+          gy:      parseFloat(data.gy)      || 0, // Đã thêm
+          gz:      parseFloat(data.gz)      || 0, // Đã thêm
           buttons: parseInt(data.buttons)   || 0,
           mode:    parseInt(data.mode)      || 0,
         });
