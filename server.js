@@ -22,7 +22,7 @@ async function appendToSheet(tabName, values) {
     const sheets = google.sheets({ version: 'v4', auth });
     await sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
-      range:         `${tabName}!A:Z`,
+      range:         `${tabName}!A1`, // Ép ghi bắt đầu từ cột A
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [values] },
     });
@@ -36,7 +36,7 @@ async function appendToSheet(tabName, values) {
 let lastSensorLog = 0;
 let lastHealthLog = 0;
 const SENSOR_INTERVAL = 10 * 1000;  // 10 giây
-const HEALTH_INTERVAL = 600 * 1000;  // 30 giây
+const HEALTH_INTERVAL = 600 * 1000;  // 10 phút
 
 // ============================================================
 //  EXPRESS
@@ -120,7 +120,6 @@ mqttClient.on('connect', () => {
   mqttClient.subscribe('gamefps/command',    { qos: 1 });
   mqttClient.subscribe('gamefps/session',    { qos: 0 });
   mqttClient.subscribe('gamefps/health',     { qos: 0 });
-  // FIX: Thêm topic nhận trạng thái OTA từ ESP32
   mqttClient.subscribe('gamefps/ota_status', { qos: 1 });
 });
 
@@ -136,7 +135,7 @@ mqttClient.on('message', async (topic, message) => {
   try { data = JSON.parse(message.toString()); }
   catch { return; }
 
-  // ── CONTROLLER: pitch/roll/yaw/buttons
+  // ── CONTROLLER
   if (topic === 'gamefps/controller') {
     const now = Date.now();
 
@@ -154,19 +153,21 @@ mqttClient.on('message', async (topic, message) => {
       } catch (e) { console.error('[DB Controller]', e.message); }
     }
 
-    // Ghi Google Sheets mỗi 10 giây
-    // FIX: Dùng biến now riêng để tránh trùng khai báo
+    // GHI GOOGLE SHEETS
     const nowSheets = Date.now();
     if (nowSheets - lastSensorLog >= SENSOR_INTERVAL) {
       lastSensorLog = nowSheets;
       const ts = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+      
+      // CHỈ GHI: TimeStamp, Pitch, Roll, Yaw, GyroX, GyroY, GyroZ
       appendToSheet('SensorLog', [
         ts,
         parseFloat(data.pitch).toFixed(2),
         parseFloat(data.roll).toFixed(2),
         parseFloat(data.yaw).toFixed(2),
-        data.buttons || 0,
-        data.mode    || 0,
+        data.gx || 0,
+        data.gy || 0,
+        data.gz || 0
       ]);
     }
   }
@@ -175,11 +176,22 @@ mqttClient.on('message', async (topic, message) => {
   if (topic === 'gamefps/session') {
     try {
       await Session.create(data);
+      
+      // Ghi thêm vào Sheets khi nhận qua MQTT
+      const ts = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+      // CHỈ GHI: TimeStamp, SessionID, Mode, ShootCount, SpellCount, Duration
+      appendToSheet('SessionLog', [
+        ts,
+        data.sessionId  || 'N/A',
+        data.mode       || 1,
+        data.shootCount || 0,
+        data.spellCount || 0,
+        data.duration   || 0
+      ]);
     } catch (e) { console.error('[DB Session]', e.message); }
   }
 
-  // ── HEALTH: voltage/temp/rssi/uptime
-  // FIX: Dùng đúng lastHealthLog và HealthLog, không đọc pitch/roll/yaw
+  // ── HEALTH
   if (topic === 'gamefps/health') {
     try {
       await HealthData.create({
@@ -192,28 +204,24 @@ mqttClient.on('message', async (topic, message) => {
       });
     } catch (e) { console.error('[DB Health]', e.message); }
 
-    // FIX: Dùng lastHealthLog (không phải lastSensorLog)
-    //      và ghi đúng tab HealthLog (không phải SensorLog)
     const nowH = Date.now();
     if (nowH - lastHealthLog >= HEALTH_INTERVAL) {
       lastHealthLog = nowH;
       const ts = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+      
+      // CHỈ GHI: TimeStamp, Temp, WiFi RSSI, Uptime
       appendToSheet('HealthLog', [
         ts,
-        data.voltage     || 0,
         data.temperature || 0,
         data.rssi        || 0,
-        data.uptime      || 0,
-        data.version     || '',
-        data.resetCount  || 0,
+        data.uptime      || 0
       ]);
     }
   }
 
-  // ── OTA STATUS: nhận thông báo từ ESP32
+  // ── OTA STATUS
   if (topic === 'gamefps/ota_status') {
     console.log(`[OTA] ESP32 bao cao: ${JSON.stringify(data)}`);
-    // Lưu vào memory để API /api/ota-status trả về cho web
     latestOtaStatus = data;
   }
 });
@@ -277,25 +285,22 @@ app.post('/api/log-session', async (req, res) => {
 
     await Session.create({ sessionId, mode, shootCount, spellCount, duration, score });
 
+    // CHỈ GHI: TimeStamp, SessionID, Mode, ShootCount, SpellCount, Duration
     appendToSheet('SessionLog', [
-      ts, sessionId,
+      ts, 
+      sessionId,
       mode       || 1,
       shootCount || 0,
       spellCount || 0,
-      duration   || 0,
-      score      || 0,
+      duration   || 0
     ]);
 
     res.json({ ok: true, sessionId });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ============================================================
-//  - Gửi thêm trường firmwareUrl vào payload để ESP32 biết tải từ đâu
-//  - Trả về trạng thái OTA hiện tại cho web polling
-// ============================================================
+// Trigger OTA
 app.post('/api/trigger-ota', (req, res) => {
-  // Đặt trạng thái pending ngay khi gửi lệnh
   latestOtaStatus = {
     status:  'pending',
     message: 'Lenh OTA da gui - cho ESP32 xac nhan...',
@@ -304,8 +309,6 @@ app.post('/api/trigger-ota', (req, res) => {
 
   mqttClient.publish(
     'gamefps/command',
-    // FIX: Gửi firmwareUrl trực tiếp trong payload
-    // ESP32 dùng URL này thay vì hardcode trong firmware
     JSON.stringify({
       command:     'START_OTA',
       firmwareUrl: 'https://raw.githubusercontent.com/ngduylam1210/GameFPS-Server/main/firmware.bin',
