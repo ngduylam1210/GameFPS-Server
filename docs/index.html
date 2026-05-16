@@ -248,7 +248,14 @@ const angleChart = new Chart(document.getElementById('angle-chart'), {
   options: {
     animation:false, responsive:true, maintainAspectRatio:false,
     plugins:{ legend:{ position:'bottom', labels:{ boxWidth:12 } } },
-    scales:{ x:{ display:false }, y:{ grid:{ color:'#e2e8f0' } } }
+    scales: { 
+        x: { display:false }, 
+        y: { 
+            min: -180, // KHÓA ĐÁY BÀN CỜ TRỤC GÓC
+            max: 180,  // KHÓA ĐỈNH TRẦN TRỤC GÓC
+            grid: { color:'#e2e8f0' } 
+        } 
+    }
   }
 });
 
@@ -262,7 +269,14 @@ const gyroChart = new Chart(document.getElementById('gyro-chart'), {
   options: {
     animation:false, responsive:true, maintainAspectRatio:false,
     plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10 } } },
-    scales:{ x:{ display:false }, y:{ grid:{ color:'#e2e8f0' } } }
+    scales: { 
+        x: { display:false }, 
+        y: { 
+            min: -300, // KHÓA ĐÁY CHO VẬN TỐC QUAY (~ -300 độ/s)
+            max: 300,  // KHÓA ĐỈNH CHO VẬN TỐC QUAY (~ 300 độ/s)
+            grid: { color:'#e2e8f0' } 
+        } 
+    }
   }
 });
 
