@@ -29,7 +29,7 @@ const auth = new google.auth.GoogleAuth({
 
 async function appendToSheet(tabName, values) {
   try {
-    const sheets = google.sheets({ version: '', auth });
+    const sheets = google.sheets({ version: 'v4', auth });
     await sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
       range:         `${tabName}!A1`, // Ép ghi bắt đầu từ cột A
