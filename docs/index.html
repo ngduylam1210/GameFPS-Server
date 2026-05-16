@@ -230,7 +230,7 @@ function updateCube(pitch, roll, yaw) {
 }
 
 // ─────────────────────────────────────────────────────────
-// CHARTS 
+// CHARTS (ĐÃ ĐIỀU CHỈNH KHOẢNG HIỂN THỊ CHUẨN)
 // ─────────────────────────────────────────────────────────
 Chart.defaults.color = '#64748b';
 Chart.defaults.font.family = 'monospace';
@@ -251,8 +251,8 @@ const angleChart = new Chart(document.getElementById('angle-chart'), {
     scales: { 
         x: { display:false }, 
         y: { 
-            min: -180, // KHÓA ĐÁY BÀN CỜ TRỤC GÓC
-            max: 180,  // KHÓA ĐỈNH TRẦN TRỤC GÓC
+            min: -180, // Khóa đáy góc ở -180 độ
+            max: 180,  // Khóa đỉnh góc ở 180 độ
             grid: { color:'#e2e8f0' } 
         } 
     }
@@ -272,8 +272,8 @@ const gyroChart = new Chart(document.getElementById('gyro-chart'), {
     scales: { 
         x: { display:false }, 
         y: { 
-            min: -300, // KHÓA ĐÁY CHO VẬN TỐC QUAY (~ -300 độ/s)
-            max: 300,  // KHÓA ĐỈNH CHO VẬN TỐC QUAY (~ 300 độ/s)
+            min: -300, // Khoảng vận tốc góc âm phù hợp để đọc dữ liệu
+            max: 300,  // Khoảng vận tốc góc dương phù hợp để đọc dữ liệu
             grid: { color:'#e2e8f0' } 
         } 
     }
