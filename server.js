@@ -94,7 +94,6 @@ const SessionSchema = new mongoose.Schema({
   timestamp:   { type: Date, default: Date.now },
   sessionId:   String,
   mode:        Number,
-  // [ĐÃ XÓA] shootCount, spellCount
   duration:    Number,
   score:       Number,
 });
@@ -103,7 +102,6 @@ const Session = mongoose.model('Session', SessionSchema);
 const HealthSchema = new mongoose.Schema({
   timestamp:   { type: Date, default: Date.now },
   uptime:      Number,
-  // [ĐÃ XÓA] voltage, temperature
   rssi:        Number,
   version:     String,
   resetCount:  Number,
@@ -214,7 +212,6 @@ mqttClient.on('message', async (topic, message) => {
     try {
       await HealthData.create({
         uptime:      data.uptime      || 0,
-        // [ĐÃ XÓA] voltage, temperature
         rssi:        data.rssi        || 0,
         version:     data.version     || '',
         resetCount:  data.resetCount  || 0,
